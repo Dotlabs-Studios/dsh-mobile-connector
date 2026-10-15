@@ -1,0 +1,29 @@
+sessions_title	Chat	Chat
+action_new_session	Nuova chat	New chat
+session_search	Cerca fra le chat	Search chats
+session_refresh	Aggiorna	Refresh
+session_reconnect	Ricollega	Reconnect
+empty_sessions	Nessuna chat ancora	No chats yet
+empty_sessions_hint	Tocca «Nuova chat» per scegliere un progetto del PC e iniziare: comparirà anche nella sidebar del desktop.	Tap «New chat» to pick a project on the PC and start: it will show up in the desktop sidebar too.
+session_empty_here	Nessuna chat qui.	No chats here.
+session_empty_project	Nessuna chat in questo progetto.	No chats in this project.
+session_new_here	Nuova chat qui	New chat here
+session_count_empty	vuoto	empty
+session_group_open	Apri le chat di %1$s	Open the chats in %1$s
+session_group_close	Chiudi le chat di %1$s	Close the chats in %1$s
+session_slice_more	Vedi l'altra chat|Vedi le altre %1$d chat	See the other chat|See the other %1$d chats
+session_slice_fewer	Mostra solo le ultime %1$d	Show only the latest %1$d chats
+session_approvals_waiting	1 richiesta in attesa|%1$d richieste in attesa	1 request waiting|%1$d requests waiting
+state_blank	vuota	empty
+state_subagent	sotto-agente	subagent
+session_chat_status	Chat %1$s	Chat %1$s
+session_new_note	La chat gira sul PC, nella cartella che scegli.	The chat runs on the PC, in the folder you pick.
+session_projects	Progetti	Projects
+session_browse_pc	Sfoglia il PC	Browse the PC
+session_no_projects	Il PC non ha ancora progetti. Usa «Sfoglia il PC» per scegliere una cartella: diventerà un progetto.	The PC has no projects yet. Use «Browse the PC» to pick a folder: it becomes a project.
+session_up_none	Nessun livello sopra	No level above
+session_up_one	Su di un livello	Up one level
+session_new_folder	Nuova cartella	New folder
+session_create_folder	Crea cartella	Create folder
+session_no_subfolders	Nessuna sottocartella. Puoi comunque iniziare una chat qui.	No subfolders. You can still start a chat here.
+session_list_truncated	Il PC ha tagliato l'elenco: qui ci sono le prime cartelle in ordine alfabetico.	The PC cut the list short: these are the first folders in alphabetical order.

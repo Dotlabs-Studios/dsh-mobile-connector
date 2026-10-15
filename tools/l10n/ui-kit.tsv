@@ -1,0 +1,9 @@
+component_image	Immagine	Image
+component_image_failed	Immagine non caricata	Image didn't load
+component_image_retry	Tocca per riprovare	Tap to try again
+component_image_failed_retry	Immagine non caricata: tocca per riprovare	Image didn't load: tap to try again
+component_close_preview	Chiudi l'anteprima	Close the preview
+component_scroll_to_bottom	Vai in fondo alla chat	Go to the end of the chat
+component_code	codice	code
+component_copy	Copia	Copy
+component_copied	Copiato	Copied

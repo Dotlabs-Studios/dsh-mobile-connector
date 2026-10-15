@@ -1,0 +1,25 @@
+delivery_action_open	Apri con un'app	Open in an app
+delivery_action_save	Scarica	Download
+delivery_action_share	Condividi	Share
+delivery_meta_not_text	non è testo	not text
+delivery_meta_cut_short	tagliato	cut short
+delivery_ask_again	Richiedi di nuovo il file al PC	Ask the PC for the file again
+delivery_close	Chiudi	Close
+delivery_retry	Riprova	Try again
+delivery_opening	L'harness sta aprendo il file…	The harness is opening the file…
+delivery_binary_body	Non è un file di testo: aprirlo o scaricarlo lo porta a un'app che lo sa leggere.	This is not a text file: opening or downloading it hands it to an app that can read it.
+delivery_saved_in	Salvato in %1$s.	Saved to %1$s.
+delivery_open_done	Aperto con un'altra app.	Opened in another app.
+delivery_open_no_app	Nessuna app sul telefono apre «%1$s»: scaricalo e aprilo dal file manager.	No app on this phone opens «%1$s»: download it and open it from the file manager.
+delivery_share_label	Condividi «%1$s»	Share “%1$s”
+delivery_share_no_app	Nessuna app sul telefono può ricevere «%1$s».	No app on this phone can receive «%1$s».
+delivery_download_needs_q	Su Android 9 o precedente l'app non può scrivere in Download senza un permesso che non chiede: usa Condividi.	On Android 9 or older the app cannot write to Download without a permission it does not ask for: use Share.
+delivery_store_refused_entry	il telefono non ha accettato il file in Download	the phone did not accept the file into Download
+delivery_store_refused_stream	il telefono non ha aperto il file in Download	the phone did not open the file in Download
+delivery_failed_generic	Non è andata: riprova.	That did not work: try again.
+preview_retry	Rileggi	Read again
+preview_browser	Apri nel browser	Open in the browser
+preview_close	Chiudi	Close
+preview_no_browser	Nessuna app può aprire questo indirizzo.	No app can open this address.
+preview_reading	L'harness sta leggendo la pagina…	The harness is reading the page…
+preview_truncated	Anteprima tagliata: la pagina continua.	The preview is cut short: the page goes on.

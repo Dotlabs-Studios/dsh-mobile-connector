@@ -1,0 +1,18 @@
+# Verification overlay for the mobile-sync plugin.
+#
+# Boots a *second* real harness instance (the shipped `web` profile, which
+# mounts the same @deepseek-ai/dsh-base + dsh-web-app bundles as the desktop
+# profile) with the plugin mounted on a distinct port, so the plugin can be
+# exercised against genuine sessionController / attachments / agents services
+# without restarting the running desktop application.
+#
+# The plugin is addressed by absolute file URL because this profile's manifest
+# does not depend on the package. The path below is the one this checkout has on
+# the author's machine: edit it to wherever you cloned the repository before
+# using this overlay.
+- insert:
+    - id: mobile-sync-verify
+      name: "file:///K:/Repository/dsh-mobile-connector/dsh-plugin-mobile-sync/lib/index.js"
+      config:
+        host: "127.0.0.1"
+        port: 4399

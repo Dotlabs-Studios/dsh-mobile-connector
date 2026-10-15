@@ -1,0 +1,57 @@
+tool_family_command	Comando	Command
+tool_family_read	Lettura	Read
+tool_family_write	Scrittura	Write
+tool_family_edit	Modifica	Edit
+tool_family_search	Ricerca	Search
+tool_family_code	Codice	Code
+tool_family_web	Web	Web
+tool_family_subagent	Sub-agente	Subagent
+tool_family_task	Attività	Task
+tool_family_delivery	Consegna	Delivery
+tool_family_image	Immagine	Image
+tool_family_other	Strumento	Tool
+tool_count_command	comando|comandi	command|commands
+tool_count_read	lettura|letture	read|reads
+tool_count_write	scrittura|scritture	write|writes
+tool_count_edit	modifica|modifiche	edit|edits
+tool_count_search	ricerca|ricerche	search|searches
+tool_count_code	codice|codici	code run|code runs
+tool_count_web	ricerca web|ricerche web	web lookup|web lookups
+tool_count_subagent	sub-agente|sub-agenti	subagent|subagents
+tool_count_task	attività|attività	task|tasks
+tool_count_delivery	consegna|consegne	delivery|deliveries
+tool_count_image	immagine|immagini	image|images
+tool_count_other	strumento|strumenti	tool|tools
+tool_group_steps	passi	steps
+tool_group_and	%1$s e %2$s	%1$s and %2$s
+tool_expand	Espandi	Expand
+tool_collapse	Riduci	Collapse
+tool_steps_failed	Uno o più passi sono falliti	One or more steps failed
+tool_images_produced	Immagini prodotte	Images produced
+tool_attachment	📎 %1$s%2$s	📎 %1$s%2$s
+tool_attachment_size	 · %1$s	 · %1$s
+tool_attachment_unnamed	file	file
+deliverable_title_one	Artefatto	Artifact
+deliverable_title_many	Artefatti	Artifacts
+deliverable_save	Scarica %1$s	Download %1$s
+approval_asking	«%1$s» chiede il permesso di essere eseguito	“%1$s” asks for permission to run
+approval_allow_once	Consenti una volta	Allow once
+approval_reject	Rifiuta	Reject
+approval_granted_once	Consentito una volta	Allowed once
+approval_rejected	Rifiutato	Rejected
+approval_not_granted	Non consentito (%1$s)	Not allowed (%1$s)
+approval_expired	Questa richiesta non è più in attesa: il turno è finito.	This request is no longer waiting: the turn is over.
+approval_sending	Invio…	Sending…
+question_card_settled	Domanda con risposta	Question answered
+question_card_asking	L'agente chiede una scelta	The agent is asking you to choose
+question_card_plain	Domanda	Question
+question_late	in ritardo	overdue
+question_multi	Puoi sceglierne più di una	You can pick more than one
+question_no_options	L'agente non ha proposto opzioni: rispondi con un messaggio.	The agent offered no options: answer with a message.
+question_answer_prefix	Risposta: %1$s	Answer: %1$s
+question_send_choice	Invia la scelta	Send the choice
+question_not_waiting	Questa domanda non è più in attesa.	This question is no longer waiting.
+question_moved_on	L'agente ha proseguito senza aspettare: la risposta gli arriverà come messaggio.	The agent carried on without waiting: your answer will reach it as a message.
+question_recommended	consigliato	recommended
+chat_working	Al lavoro ···	Working ···
+chat_working_since	Al lavoro da %1$ds ···	Working for %1$ds ···

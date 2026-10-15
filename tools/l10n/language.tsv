@@ -1,0 +1,12 @@
+settings_language	Lingua	Language
+settings_language_note	La scelta vale subito e resta anche dopo un riavvio.	The choice takes effect at once and survives a restart.
+language_system_label	Sistema	System
+language_it_label	Italiano	Italiano
+language_en_label	English	English
+language_follow_phone	Segue il telefono: %1$s	Follows the phone: %1$s
+language_follow_phone_unknown	Segue la lingua del telefono.	Follows the phone's language.
+language_it_name	italiano	Italian
+language_en_name	inglese	English
+appearance_system	Sistema	System
+appearance_light	Chiaro	Light
+appearance_dark	Scuro	Dark

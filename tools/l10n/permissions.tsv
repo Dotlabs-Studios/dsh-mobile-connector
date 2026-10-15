@@ -1,0 +1,21 @@
+perm_title	Accesso	Access
+perm_subtitle	Cosa può fare l'agente in questa chat.	What the agent may do in this chat.
+perm_default_note	Vale per questa chat. Le chat nuove partono da «%1$s», che si cambia dalle impostazioni del PC.	This applies to this chat. New chats start from «%1$s», which is changed in the PC's settings.
+perm_none	Nessun preset disponibile.	No presets available.
+perm_in_use	In uso	In use
+perm_no_approval	Nessuna richiesta di permesso	Never asks for permission
+perm_preset_read_only	Solo lettura	Read only
+perm_preset_workspace_write	Scrittura nel progetto	Write in the project
+perm_chip_workspace_write	Scrittura	Write
+perm_preset_full_access	Accesso completo	Full access
+perm_preset_auto	Auto	Auto
+perm_detail_read_only	Legge il progetto e lancia comandi che non scrivono. Per tutto il resto chiede il permesso.	Reads the project and runs commands that do not write. For everything else it asks for permission.
+perm_detail_workspace_write	Scrive dentro il progetto e nelle cartelle temporanee. Per il resto chiede il permesso.	Writes inside the project and the temporary folders. Otherwise it asks for permission.
+perm_detail_full_access	Accesso libero ai file e nessuna richiesta di permesso: l'agente non si ferma più a chiedere, qualunque cosa debba fare.	Unrestricted access to files and no permission requests: the agent no longer stops to ask, whatever it has to do.
+perm_detail_auto	Un revisore decide al posto tuo.	A reviewer decides in your place.
+perm_chip_none	Permessi	Permissions
+perm_full_access_title	Abilitare Accesso completo?	Turn on Full access?
+perm_full_access_body	Accesso completo riduce i passaggi di conferma e lascia eseguire più azioni direttamente, comprese operazioni sensibili, modifiche ai file o comandi esterni. Usalo solo quando ti fidi di quello che stai per chiedere.	Full access cuts down the confirmation steps and lets more happen directly, including sensitive operations, file changes and external commands. Use it only when you trust what you are about to ask for.
+perm_full_access_ack	Ho capito i rischi e voglio continuare	I understand the risks and want to continue
+perm_full_access_confirm	Abilita Accesso completo	Turn on Full access
+perm_cancel	Annulla	Cancel

@@ -1,0 +1,22 @@
+chat_title	Chat	Chat
+state_running	in esecuzione	running
+state_idle	in attesa	waiting
+chat_empty_title	Come posso aiutarti?	How can I help?
+empty_messages	Ancora nessun messaggio: scrivi qui sotto per iniziare.	No messages yet: write below to get started.
+chat_load_older	Carica messaggi precedenti	Load earlier messages
+chat_notice_event	evento	event
+chat_back	Indietro	Back
+chat_new_elsewhere	Nuova chat in un'altra cartella	New chat in another folder
+chat_interrupted	Interrotto	Interrupted
+chat_reasoning	Ragionamento	Reasoning
+chat_collapse	Riduci	Collapse
+chat_expand	Espandi	Expand
+chat_remove	Rimuovi	Remove
+chat_queue_behind_turn	Accoda dietro il turno	Queue behind the turn
+chat_steer_interrupt	Interrompi e guida	Interrupt and steer
+composer_hint	Scrivi un messaggio…	Write a message…
+action_attach	Aggiungi una foto	Add a photo
+chat_attach_file	Allega un file	Attach a file
+chat_attachment_size	 · %1$s	 · %1$s
+chat_model_fallback	modello	model
+action_send	Invia	Send

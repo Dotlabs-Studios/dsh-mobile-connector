@@ -1,0 +1,14 @@
+model_title	Modello	Model
+model_subtitle	I modelli configurati su questo PC.	The models configured on this PC.
+model_refresh	Rileggi l'elenco	Reload the list
+model_note	Scegliere qui cambia anche il modello predefinito del PC, come fa il selettore del desktop. Il cambio vale dalla prossima richiesta; un passo già in corso finisce col modello con cui è partito.	Choosing here also changes the PC's default model, exactly as the desktop picker does. The change applies from the next request; a step already under way finishes with the model it started with.
+model_retry	Riprova	Try again
+model_empty	Il PC non ha modelli utilizzabili. Controlla le chiavi API nelle impostazioni del desktop.	The PC has no usable models. Check the API keys in the desktop settings.
+model_failure	⚠ %1$s: %2$s	⚠ %1$s: %2$s
+model_default	Predefinito del PC: %1$s	PC default: %1$s
+model_default_reasoning	Predefinito del PC: %1$s · ragionamento %2$s	PC default: %1$s · reasoning %2$s
+model_accepts_images	Accetta immagini	Accepts images
+model_in_use	In uso	In use
+model_context_k	%1$dk token	%1$dk tokens
+model_context_tokens	%1$d token | %1$d token	%1$d token | %1$d tokens
+question_sending	Invio…	Sending…

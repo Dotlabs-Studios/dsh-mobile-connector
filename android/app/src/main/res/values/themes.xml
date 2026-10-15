@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        The window behind the first Compose frame. It matches the app canvas of the
+        phone's own theme, so a cold start does not flash a different colour before
+        the palette is applied; values-night carries the dark twin.
+    -->
+    <style name="Theme.DshMobile" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@color/surface</item>
+    </style>
+</resources>

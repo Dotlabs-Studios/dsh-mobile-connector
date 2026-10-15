@@ -1,0 +1,12 @@
+app_name	DeepSeek Harness	DeepSeek Harness
+pairing_title	DeepSeek Harness	DeepSeek Harness
+pairing_subtitle	Collega il telefono al tuo harness per continuare le chat ovunque.	Connect your phone to your harness so you can carry on your chats anywhere.
+field_host	Indirizzo del PC	PC address
+pair_host_example	192.168.1.20 oppure 100.101.102.103	192.168.1.20 or 100.101.102.103
+field_code	Codice di accoppiamento	Pairing code
+pair_code_hint	Dal log di DeepSeek Harness	From the DeepSeek Harness log
+field_device	Nome di questo telefono	Name for this phone
+pair_device_example	Il mio telefono	My phone
+action_pair	Accoppia	Pair
+pair_code_log	Il codice di accoppiamento appare nel log di DeepSeek Harness all'avvio, accanto alla voce «mobile-sync: pairing code».	The pairing code appears in the DeepSeek Harness log at startup, next to the «mobile-sync: pairing code» entry.
+pair_tailscale	Fuori casa? Attiva Tailscale su entrambi i dispositivi e usa l'indirizzo Tailscale del PC (100.x.x.x).	Out of the house? Turn on Tailscale on both devices and use the PC's Tailscale address (100.x.x.x).

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    What the FileProvider is allowed to hand out.
+
+    Exactly one directory, and it is the app's own: a delivered file is written
+    into `cacheDir/deliveries` on its way to a viewer or the share sheet, and
+    nothing else in the app is reachable through a content: URI.
+-->
+<paths>
+    <cache-path name="deliveries" path="deliveries/" />
+</paths>

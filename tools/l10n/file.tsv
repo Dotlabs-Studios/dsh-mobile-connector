@@ -1,0 +1,8 @@
+file_retry	Riprova	Try again
+file_close	Chiudi	Close
+file_read_again	Rileggi il file	Read the file again
+file_reading	L'harness sta leggendo il file…	The harness is reading the file…
+file_truncated	Il file è più lungo di così: qui c'è l'inizio.	The file is longer than this: what is here is the beginning.
+file_meta_cut_short	tagliato	cut short
+file_meta_line	riga %1$d	line %1$d
+file_attach_too_large	File troppo grande: il massimo è 32 MB.	That file is too large: the limit is 32 MB.

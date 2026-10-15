@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The launcher icon.
+
+    The mark is the harness's own whale, lifted from its shipped `icon.png` by
+    `tools/make-launcher-icon.py` and centred in the middle 72 of 108 units, which
+    is the part a launcher's mask is guaranteed to keep. The plate the harness
+    draws behind it becomes the background colour instead, so the launcher's own
+    shape shows through rather than a square of someone else's.
+
+    `monochrome` reuses the same foreground: on Android 13+ the system asks for a
+    silhouette and tints it itself, and the whale's alpha channel already is one.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>

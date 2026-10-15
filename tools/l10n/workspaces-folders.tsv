@@ -1,0 +1,13 @@
+workspace_remove	Rimuovi il progetto %1$s	Remove the project %1$s
+workspace_remove_question	Rimuovere «%1$s» dai progetti?	Remove «%1$s» from your projects?
+workspace_remove_detail	Il progetto esce dall'elenco e le sue chat tornano sotto «Senza progetto». Non tocca il disco: la cartella e i file restano dove sono, e puoi riadottarla quando vuoi.	The project leaves the list and its chats go back under «No project». Nothing touches the disk: the folder and the files stay where they are, and you can adopt it again whenever you want.
+workspace_remove_confirm	Rimuovi	Remove
+workspace_remove_cancel	Annulla	Cancel
+browse_create_and_start	Crea «%1$s» e inizia la chat	Create «%1$s» and start the chat
+browse_start_in	Inizia la chat in «%1$s»	Start the chat in «%1$s»
+browse_start_here	Inizia una chat in questa cartella	Start a chat in this folder
+status_running	in corso	running
+status_completed	completata	completed
+status_failed	in errore	failed
+status_stopped	interrotta	stopped
+status_idle	mai avviata	never started

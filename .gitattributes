@@ -1,0 +1,12 @@
+# Line endings belong to the repository, not to whoever cloned it: everything
+# below is stored as LF, so a clone on Windows and a clone on Linux produce the
+# same bytes for every file that is not a Windows-only script.
+* text=auto eol=lf
+
+# cmd.exe reads a batch file line by line and expects CRLF.
+*.bat text eol=crlf
+
+# Assets that must never be normalised.
+*.png binary
+*.jpg binary
+*.jar binary

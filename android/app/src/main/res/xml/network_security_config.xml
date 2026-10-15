@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The harness speaks plain HTTP inside the LAN and over Tailscale: neither
+  network terminates TLS for it, so a strict cleartext policy would make the
+  app unable to reach its own host.
+
+  The transport is therefore cleartext on private networks only, and the real
+  access control is the per-device bearer token issued at pairing (see
+  PairingScreen). Traffic never leaves the LAN or the Tailscale mesh, which are
+  both already encrypted at the link layer (WPA2/3, WireGuard).
+
+  If you later expose the harness through a public reverse proxy, put TLS in
+  front of it and set cleartextTrafficPermitted to false here.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

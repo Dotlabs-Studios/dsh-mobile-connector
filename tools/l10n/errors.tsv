@@ -1,0 +1,67 @@
+error_host_required	Inserisci l\'indirizzo del PC.	Enter the PC address.
+error_code_required	Inserisci il codice di accoppiamento.	Enter the pairing code.
+error_pairing_refused	Codice errato. Ricontrolla il log dell\'harness.	Wrong code. Check the harness log again.
+error_pairing_used	Questo codice è già stato usato. Riavvia DeepSeek Harness: ne genera uno nuovo e lo scrive nel log.	This code has already been used. Restart DeepSeek Harness: it generates a new one and writes it to the log.
+error_pairing_expired	Codice scaduto: riavvia DeepSeek Harness per generarne uno nuovo.	The code expired: restart DeepSeek Harness to generate a new one.
+error_pairing_unreachable	Non riesco a raggiungere %1$s. Stessa Wi-Fi? Tailscale attivo?	I cannot reach %1$s. Same Wi-Fi? Is Tailscale up?
+error_pairing_failed	Accoppiamento non riuscito.	Pairing failed.
+error_folder_name_required	Scrivi un nome per la cartella.	Type a name for the folder.
+error_folder_unreadable	Il PC non riesce a leggere questa cartella.	The PC cannot read this folder.
+error_folder_exists	Esiste già una cartella con questo nome.	A folder with this name already exists.
+error_folder_create_failed	Non riesco a creare la cartella: %1$s	Could not create the folder: %1$s
+error_folder_invalid	Il PC non accetta questa cartella come progetto.	The PC does not accept this folder as a project.
+error_folder_drive_root	Il PC non riesce ad aprire una chat nella radice di un\'unità: scegli o crea una cartella al suo interno.	The PC cannot open a chat at the root of a drive: pick or create a folder inside it.
+error_folder_illegal_name	Il nome della cartella non può contenere \\ o /.	A folder name cannot contain \\ or /.
+error_projects_unavailable	Questa versione dell\'harness non espone i progetti.	This harness version does not expose projects.
+error_transport_short	Non raggiungo il PC. Tailscale attivo?	Cannot reach the PC. Is Tailscale up?
+error_unauthorized	Token non più valido: ricollega il telefono.	The token is no longer valid: pair the phone again.
+error_connection	Non raggiungo il PC a %1$s. A casa serve la stessa Wi-Fi; fuori casa Tailscale attivo su entrambi i dispositivi.	Cannot reach the PC at %1$s. At home you need the same Wi-Fi; away from home, Tailscale up on both devices.
+error_nowhere	nessun indirizzo	no address
+error_file_uploading	Un file è ancora in caricamento: aspetta che finisca.	A file is still uploading: wait for it to finish.
+error_writer_held	Il PC sta scrivendo in questa chat. Chiudila sul desktop, oppure scrivi in un\'altra sessione.	The PC is writing in this chat. Close it on the desktop, or write in another session.
+error_agent_busy	L\'agente è occupato: riprova tra un istante.	The agent is busy: try again in a moment.
+error_send_failed	invio non riuscito	the message was not sent
+error_too_many_photos	Massimo %1$d foto per messaggio	At most %1$d photos per message
+error_too_many_files	Massimo %1$d file per messaggio	At most %1$d files per message
+error_file_too_large	Il file è troppo grande per il PC: il massimo è 32 MB.	The file is too large for the PC: the limit is 32 MB.
+error_receipt_stale	Il PC non ha più questo file pronto: riprova ad allegarlo.	The PC no longer has this file ready: attach it again.
+error_chat_closed	Il PC non ha questa chat aperta: aprila sul desktop e riprova.	The PC does not have this chat open: open it on the desktop and try again.
+error_files_unavailable	Questa versione dell\'harness non accetta file.	This harness version does not accept files.
+error_project_gone	Quel progetto non è più nell\'elenco del PC: la lista è stata riletta.	That project is no longer in the PC\'s list: the list has been re-read.
+error_project_remove_failed	Non riesco a rimuovere il progetto: %1$s	Could not remove the project: %1$s
+error_models_route_missing	Questo harness non espone ancora l\'elenco dei modelli: il plugin aggiornato viene letto solo all\'avvio. Chiudi e riapri DeepSeek Harness sul PC.	This harness does not expose the model list yet: an updated plugin is only read at startup. Quit and reopen DeepSeek Harness on the PC.
+error_models_unavailable	Questa versione dell\'harness non espone l\'elenco dei modelli.	This harness version does not expose the model list.
+error_model_needs_chat	Apri una chat prima di scegliere il modello.	Open a chat before choosing a model.
+error_model_unavailable	Il PC non riesce a usare questo modello: manca la chiave API, oppure il provider non risponde.	The PC cannot use this model: the API key is missing, or the provider is not answering.
+error_model_writer_held	Un\'altra istanza dell\'harness sta scrivendo in questa chat. Chiudila e riprova.	Another harness instance is writing in this chat. Close it and try again.
+error_model_transport	Non raggiungo il PC.	Cannot reach the PC.
+error_permission_unknown	Questo harness non offre «%1$s».	This harness does not offer “%1$s”.
+error_permission_session_gone	L\'harness non tiene più questa sessione: riaprila dall\'elenco e riprova.	The harness no longer holds this session: reopen it from the list and try again.
+error_permission_unavailable	Questo harness non monta i preset di permesso.	This harness does not mount permission presets.
+error_permissions_route_missing	Questo harness non espone ancora i permessi: il plugin aggiornato viene letto solo all\'avvio. Chiudi e riapri DeepSeek Harness sul PC.	This harness does not expose permissions yet: an updated plugin is only read at startup. Quit and reopen DeepSeek Harness on the PC.
+error_file_gone	Il PC non trova questo file: %1$s	The PC cannot find this file: %1$s
+error_path_is_folder	Questo link punta a una cartella, non a un file.	This link points at a folder, not a file.
+error_not_text	Non è un file di testo, quindi non c\'è niente da leggere qui.	It is not a text file, so there is nothing to read here.
+error_relative_no_session	Questo link è un percorso relativo e l\'harness non sa in quale cartella cercarlo: apri la chat da cui viene.	This link is a relative path and the harness does not know which folder to look in: open the chat it came from.
+error_path_refused	Il PC rifiuta questo percorso: %1$s	The PC refuses this path: %1$s
+error_files_route_missing	Questo harness non espone ancora i file: il plugin aggiornato viene letto solo all\'avvio. Chiudi e riapri DeepSeek Harness sul PC.	This harness does not expose files yet: an updated plugin is only read at startup. Quit and reopen DeepSeek Harness on the PC.
+error_delivery_gone	Il PC non trova più questa consegna nel registro della chat.	The PC can no longer find this delivery in the chat log.
+error_delivered_file_gone	Il file non è più sul PC: %1$s	The file is no longer on the PC: %1$s
+error_delivery_is_folder	Questa consegna punta a una cartella, non a un file.	This delivery points at a folder, not a file.
+error_delivery_too_large	Il file supera il limite di 64 MB che l\'app scarica.	The file is past the 64 MB limit the app downloads.
+error_delivery_no_path	Il PC non sa dove sta questo file: %1$s	The PC does not know where this file is: %1$s
+error_deliveries_route_missing	Questo harness non conosce ancora le consegne: il plugin aggiornato viene letto solo all\'avvio. Chiudi e riapri DeepSeek Harness sul PC.	This harness does not know about deliveries yet: an updated plugin is only read at startup. Quit and reopen DeepSeek Harness on the PC.
+error_preview_blocked	L\'harness rifiuta questo indirizzo: %1$s	The harness refuses this address: %1$s
+error_preview_timeout	La pagina non è arrivata in tempo. Riprova, o aprila nel browser.	The page did not arrive in time. Try again, or open it in the browser.
+error_preview_unsupported	Non è una pagina di testo: probabilmente un\'immagine o un file binario.	It is not a text page: probably an image or a binary file.
+error_preview_too_large	La pagina è troppo grande per un\'anteprima.	The page is too large for a preview.
+error_preview_unavailable	Questo harness non monta il fetch web.	This harness does not mount web fetch.
+error_previews_route_missing	Questo harness non espone ancora le anteprime: il plugin aggiornato viene letto solo all\'avvio. Chiudi e riapri DeepSeek Harness sul PC.	This harness does not expose previews yet: an updated plugin is only read at startup. Quit and reopen DeepSeek Harness on the PC.
+error_answer_required	Scegli almeno una risposta.	Pick at least one answer.
+error_question_settled	Questa domanda ha già una risposta, oppure l\'agente è andato avanti.	This question already has an answer, or the agent has moved on.
+error_approval_settled	Questa richiesta è già stata decisa altrove (dal PC o da un altro telefono).	This request has already been decided elsewhere (on the PC or another phone).
+error_questions_route_missing	Questo harness non espone ancora le domande all\'utente: il plugin aggiornato viene letto solo all\'avvio. Chiudi e riapri DeepSeek Harness sul PC.	This harness does not expose questions to the user yet: an updated plugin is only read at startup. Quit and reopen DeepSeek Harness on the PC.
+error_approvals_route_missing	Questo harness non espone ancora le richieste di permesso: il plugin aggiornato viene letto solo all\'avvio. Chiudi e riapri DeepSeek Harness sul PC.	This harness does not expose permission requests yet: an updated plugin is only read at startup. Quit and reopen DeepSeek Harness on the PC.
+error_no_host	nessun host collegato	no host connected
+session_untitled	Nuova chat	New chat
+session_ungrouped	Senza progetto	No project

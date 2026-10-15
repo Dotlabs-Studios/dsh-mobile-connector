@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The languages this app ships, declared to the system.
+
+    From Android 13 the per-app language screen reads this file, and Android 14
+    adds a "App languages" shortcut to it inside the app's own settings page —
+    neither of which can be guessed from what is inside the APK. The tags must
+    match the resource folders: `it` is `res/values-it` when a translation of the
+    base language exists, and `en` is `res/values-en`.
+
+    Italian is listed because it is a language this app *speaks*, not because its
+    strings live in a qualified folder: they are the default, in `res/values`,
+    which is what a phone set to a language with no translation falls back to.
+    Adding a language therefore means a `values-xx` folder and one more `<locale>`
+    line here.
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="it" />
+    <locale android:name="en" />
+</locale-config>

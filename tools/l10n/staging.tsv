@@ -1,0 +1,7 @@
+staging_pick_unreadable	impossibile leggere il file scelto	Could not read the file you picked
+staging_photo_unsupported	il file scelto non è un'immagine supportata (PNG, JPEG, WebP, GIF)	That file isn't a supported image (PNG, JPEG, WebP, GIF)
+label_photo	foto	photo
+label_image_too_large	Immagine troppo grande (%1$d MB, max 12 MB)	Image too large (%1$d MB, 12 MB max)
+staging_photo_unreadable	Immagine non leggibile	Image couldn't be read
+staging_file_unreadable	File non leggibile	File couldn't be read
+staging_file_too_large	file troppo grande	File too large
