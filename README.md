@@ -9,9 +9,9 @@ Two pieces that work together: a host plugin that turns the running harness into
 | **`dsh-plugin-mobile-sync`** | inside DeepSeek Harness, as a Cordis host plugin (plain Node ESM, no dependencies) | Opens a dedicated HTTP listener with a per-device bearer-token model, and translates sessions, chat, photos, files, tool approvals, agent questions and permission presets into a small REST + SSE vocabulary. |
 | **`android/`** | Android 8.0+ (API 26), Kotlin + Jetpack Compose | Session list grouped by project, full transcript with tool cards and diffs, rendered markdown, sending text / photos / files, approvals, agent questions, model and permission pickers, delivered artefacts, link previews. |
 
-| Pairing | Sessions | Chat | Photo |
+| Pairing | Chats | Transcript | Tool calls |
 |---|---|---|---|
-| ![Pairing](docs/shots/app-01-pairing.png) | ![Sessions](docs/shots/app-02-sessions.png) | ![Chat](docs/shots/app-03-chat.png) | ![Photo](docs/shots/app-04-photo.png) |
+| ![Pairing](docs/shots/app-01-pairing.png) | ![Chats, grouped into projects, one folded away](docs/shots/app-02-chats.png) | ![A transcript, with a photo sent from the phone](docs/shots/app-03-transcript.png) | ![Tool cards, a failed command and the approval that stopped the turn](docs/shots/app-04-tools.png) |
 
 ---
 
@@ -222,6 +222,18 @@ Android 8.0 (API 26) or newer. The release APK published with this project is si
 - **Pick the model**, with context window, vision support and reasoning effort where the model declares them — note that this is the *PC's* selection, exactly as the desktop's own picker.
 - **Tap a link** for a preview read by the PC, **tap a file link** to read the file itself, and open, download or share **artefacts** the agent declared with `present`.
 - **Theme and language**: system / light / dark with two complete palettes, and system / Italian / English.
+
+### What it looks like
+
+Every screenshot here is the app as v0.2.0 ships it — the upgrade [CHANGELOG.md](CHANGELOG.md) describes. The phone they come from is set to Italian, and the app follows the system language while carrying both, as the Settings shot below shows.
+
+| Access level | What a turn delivered | A project with its tail open | Theme and language |
+|---|---|---|---|
+| ![The three access presets, with the checkbox full access asks for](docs/shots/app-05-access.png) | ![The artefacts a turn delivered, beside the approval it is waiting on](docs/shots/app-06-artefacts.png) | ![A project expanded past its tail, with the row that folds it back to the last five](docs/shots/app-07-project-tail.png) | ![Appearance and language in Settings](docs/shots/app-08-settings.png) |
+
+| Tool calls, dark | Model picker, dark | Browsing the PC, dark |
+|---|---|---|
+| ![Tool cards, a failed command and approvals in the dark palette](docs/shots/app-09-tools-dark.png) | ![The model picker, with context window and vision per model](docs/shots/app-10-models-dark.png) | ![Browsing the PC's filesystem to start a chat in a folder](docs/shots/app-11-browse-dark.png) |
 
 A tour of the code — where state lives, how the transcript is folded, why the data layer produces no text — is in **[docs/APP.md](docs/APP.md)**.
 
