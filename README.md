@@ -324,6 +324,7 @@ docs/
   shots/                    the screenshots in this README
 test/                       plugin, e2e and UI-stub suites
 tools/                      string generator, launcher icon generator
+CHANGELOG.md                what each release contains
 ```
 
 ---
