@@ -2193,6 +2193,13 @@ async function writeContractFixtures() {
   ok(stateRead.status === 403, `the device table is not readable through /mobile/file (got ${stateRead.status})`)
   ok(stateRead.body.error?.code === 'file/forbidden', `the refusal is a policy one (got ${stateRead.body.error?.code})`)
 
+  // The same file spelled as a `file:` URL is the same file: the fence is applied
+  // to what a reference resolves to, not to how it was typed.
+  const asUrl = `file:///${instance.configPath.replace(/\\/g, '/')}`
+  const stateAsUrl = await authed(`/mobile/file?ref=${encodeURIComponent(asUrl)}`)
+  ok(stateAsUrl.status === 403, `a file: URL is fenced like the path it names (got ${stateAsUrl.status})`)
+  ok(stateAsUrl.body.error?.code === 'file/forbidden', 'with the same policy code')
+
   // A note an agent could have linked is still served.
   const notes = fileURLToPath(new URL('./_runtime-notes/', import.meta.url))
   await mkdir(notes, { recursive: true })

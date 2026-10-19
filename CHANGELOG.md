@@ -147,7 +147,7 @@ turns the app from a reader into a remote control that can tell you when it need
 
 ### Verified on this release
 
-- 482 offline plugin checks and 33 status-mapping checks, including the pairing, device, SSE-backpressure and
+- 484 offline plugin checks and 33 status-mapping checks, including the pairing, device, SSE-backpressure and
   idempotent-prompt cases added in this cycle.
 - 362 JVM tests, including the contract fixtures captured by the plugin suite and the new pure modules: image sizing,
   the watch feed, address failover, transcript search, message quoting and the unread map's codec.
