@@ -16,6 +16,7 @@
     <string name="action_new_session">Nuova chat</string>
     <string name="action_pair">Accoppia</string>
     <string name="action_revoke">Revoca</string>
+    <string name="action_save">Salva</string>
     <string name="action_send">Invia</string>
     <string name="action_unpair">Scollega questo telefono</string>
     <string name="app_name">DeepSeek Harness</string>
@@ -272,6 +273,9 @@
     <string name="session_up_none">Nessun livello sopra</string>
     <string name="session_up_one">Su di un livello</string>
     <string name="sessions_title">Chat</string>
+    <string name="settings_address_note">Il token resta lo stesso: cambiare indirizzo non richiede un nuovo accoppiamento.</string>
+    <string name="settings_address_title">Indirizzo del PC</string>
+    <string name="settings_change_address">Modifica indirizzo</string>
     <string name="settings_connected">PC collegato</string>
     <string name="settings_device_current">Questo telefono</string>
     <string name="settings_device_last_seen">Ultimo contatto %1$s</string>

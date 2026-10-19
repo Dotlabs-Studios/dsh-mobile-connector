@@ -26,6 +26,9 @@
   the ongoing notification carries its own Stop. The three frames that earn a notification are decided by a pure,
   JVM-tested decoder, and a reconnect backoff keeps a dead link from becoming a busy loop.
 - **Long-press a message to copy it or hand it to another app** — two actions, no export format to own.
+- **The PC address is editable without pairing again.** The token names this device in the harness's table, not an
+  address, so a PC that moved (DHCP, a new router, a different tailnet address) is a field to change in Settings →
+  Connection instead of a pairing to redo.
 - **An approval card shows what is being approved.** The command about to run, or the file and the text about to be
   written, is drawn inside the card from the tool call the transcript already holds — the buttons used to be the only
   thing on it that named the act.

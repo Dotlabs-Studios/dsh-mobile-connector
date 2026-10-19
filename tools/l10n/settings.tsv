@@ -5,3 +5,7 @@ settings_section_connection	Collegamento	Connection
 settings_connected	PC collegato	PC connected
 settings_not_connected	Nessun PC collegato	No PC connected
 action_unpair	Scollega questo telefono	Unpair this phone
+action_save	Salva	Save
+settings_change_address	Modifica indirizzo	Change address
+settings_address_title	Indirizzo del PC	PC address
+settings_address_note	Il token resta lo stesso: cambiare indirizzo non richiede un nuovo accoppiamento.	The token stays the same: changing the address does not need a new pairing.

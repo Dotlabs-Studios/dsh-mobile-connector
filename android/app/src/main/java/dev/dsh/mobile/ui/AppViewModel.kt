@@ -540,6 +540,43 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     /** The base URL currently in use, for display in settings. */
     val pairedHost: String? get() = store.host
 
+    /**
+     * Point the app at a different address for the same harness.
+     *
+     * The token is not tied to an address: it names a device in the harness's own
+     * table, and the PC can move (DHCP, a new router, a tailnet address) without
+     * the pairing changing. Saving a new address is therefore a rebuild of the
+     * client, not a new pairing — and it is what replaces "unpair and pair again"
+     * as the way out of an address that stopped answering.
+     *
+     * @param raw the address as typed, with or without scheme and port.
+     * @return false when the address is empty, so the dialog can stay open.
+     */
+    fun changeHost(raw: String): Boolean {
+        val host = normalizeHost(raw)
+        if (host.isBlank()) {
+            problem = ConnectionProblem("host-required", TextRef.of(R.string.error_host_required))
+            return false
+        }
+        store.host = host
+        hostInput = host
+        val token = store.token ?: return true
+        val client = MobileApi(host, token)
+        api = client
+        sync = ChatSync(sourceOf(client))
+        listFailures = 0
+        chatFailures = 0
+        entries = emptyList()
+        oldestSeq = null
+        hasOlder = false
+        if (openSession != null) {
+            pauseChatPolling()
+            resumeChatPolling()
+        }
+        viewModelScope.launch { loadSessions() }
+        return true
+    }
+
     /** Whether the settings sheet is open. */
     var settingsOpen by mutableStateOf(false)
         private set

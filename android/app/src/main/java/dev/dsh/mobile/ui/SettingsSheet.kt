@@ -56,6 +56,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.dsh.mobile.R
@@ -87,6 +88,7 @@ fun SettingsSheet(viewModel: AppViewModel) {
     // lending the phone, not one that changes while you look at it.
     LaunchedEffect(Unit) { viewModel.loadDevices() }
     var pendingRevoke by remember { mutableStateOf<PairedDevice?>(null) }
+    var addressOpen by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = { viewModel.closeSettings() },
@@ -168,6 +170,18 @@ fun SettingsSheet(viewModel: AppViewModel) {
                                 color = palette.textTertiary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                    viewModel.pairedHost?.let {
+                        // The PC can move without the pairing changing, so the
+                        // address is editable on its own instead of being welded
+                        // to an unpair-and-pair-again.
+                        TextButton(onClick = { addressOpen = true }) {
+                            Text(
+                                text = stringResource(R.string.settings_change_address),
+                                style = HarnessType.caption,
+                                color = palette.accent,
                             )
                         }
                     }
@@ -254,6 +268,47 @@ fun SettingsSheet(viewModel: AppViewModel) {
             },
             dismissButton = {
                 TextButton(onClick = { pendingRevoke = null }) {
+                    Text(stringResource(R.string.action_cancel), color = palette.textSecondary)
+                }
+            },
+        )
+    }
+
+    // Changing the address is not a new pairing: the token names this device in
+    // the harness's table, and the PC is free to move.
+    if (addressOpen) {
+        var address by remember(viewModel.pairedHost) { mutableStateOf(viewModel.pairedHost.orEmpty()) }
+        AlertDialog(
+            onDismissRequest = { addressOpen = false },
+            containerColor = palette.surface,
+            titleContentColor = palette.textPrimary,
+            textContentColor = palette.textSecondary,
+            title = { Text(stringResource(R.string.settings_address_title)) },
+            text = {
+                Column {
+                    HarnessTextField(
+                        value = address,
+                        onValueChange = { address = it },
+                        placeholder = stringResource(R.string.pair_host_example),
+                        keyboardType = KeyboardType.Uri,
+                        filled = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = stringResource(R.string.settings_address_note),
+                        style = HarnessType.caption,
+                        color = palette.textTertiary,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { if (viewModel.changeHost(address)) addressOpen = false }) {
+                    Text(stringResource(R.string.action_save), color = palette.accent)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { addressOpen = false }) {
                     Text(stringResource(R.string.action_cancel), color = palette.textSecondary)
                 }
             },
