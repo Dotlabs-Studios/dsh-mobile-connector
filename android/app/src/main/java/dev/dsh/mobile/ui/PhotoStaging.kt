@@ -14,16 +14,13 @@ import java.io.IOException
 import java.util.Base64
 
 /**
- * Read a picked image and stage it on the host.
+ * Read a picked image, shrink it to what the model reads, and stage it.
  *
- * The media type is sniffed from the file signature rather than trusted from
- * the provider, because the harness rejects a media type that disagrees with
- * the actual bytes.
- *
- * What this refuses with is chosen here and spelled where the reader is: staging
- * reads bytes on an IO thread, where no resource table is in reach, so a refusal
- * travels as a [TextRef] — the name of a sentence, never the sentence — and the
- * banner that shows it asks the table in the language in force.
+ * Everything expensive happens on an IO thread: reading the file, sniffing its
+ * real media type, sampling it down to its long edge, re-encoding it, and only
+ * then producing the canonical base64 the API carries. The base64 step used to run
+ * on the main thread right after the picker returned, which is a freeze of several
+ * seconds for a photo the model would have resized anyway.
  *
  * @param context a context able to open the content URI.
  * @param uri the picked image.
@@ -40,19 +37,17 @@ fun AppViewModel.stagePhotoFrom(context: Context, uri: Uri) {
                 // store will be told, and the app's word for a photo is the
                 // fallback when it reports none.
                 val name = displayName(context, uri) ?: context.getString(R.string.label_photo)
-                Triple(name, mediaType, bytes)
+                val prepared = prepareImageForUpload(bytes, mediaType) ?: PreparedImage(bytes, mediaType)
+                if (prepared.bytes.size > MAX_UPLOAD_BYTES) {
+                    throw RefusedPhoto(TextRef.of(R.string.label_image_too_large, prepared.bytes.size / 1024 / 1024))
+                }
+                // java.util.Base64 (API 26+) rather than android.util.Base64 keeps
+                // this file — and therefore the whole staging path — exercisable
+                // on the JVM.
+                Triple(name, mediaType, Base64.getEncoder().encodeToString(prepared.bytes))
             }
         }
-        payload.onSuccess { (name, mediaType, bytes) ->
-            if (bytes.size > MAX_UPLOAD_BYTES) {
-                // The megabytes are an argument of the sentence rather than part
-                // of it, so a language stays free to word the whole thing.
-                onPhotoRejected(TextRef.of(R.string.label_image_too_large, bytes.size / 1024 / 1024))
-                return@onSuccess
-            }
-            // java.util.Base64 (API 26+) rather than android.util.Base64 keeps this
-            // file — and therefore the whole staging path — exercisable on the JVM.
-            val encoded = Base64.getEncoder().encodeToString(bytes)
+        payload.onSuccess { (name, mediaType, encoded) ->
             stagePhoto(name, mediaType, encoded)
         }.onFailure { error ->
             onPhotoRejected(

@@ -58,6 +58,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -69,8 +70,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import dev.dsh.mobile.R
+import dev.dsh.mobile.data.sampleSizeFor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
@@ -216,6 +219,24 @@ fun RunningRing(color: Color, size: Dp = 12.dp, modifier: Modifier = Modifier) {
 }
 
 /**
+ * Bytes of encoded images kept in memory.
+ *
+ * A transcript can show a dozen photos, and re-downloading one because a scroll
+ * moved it off screen is exactly the cost this cache exists to remove. 24 MiB is
+ * roughly two dozen phone photos after the downscale.
+ */
+private const val IMAGE_CACHE_BYTES = 24 * 1024 * 1024
+
+/**
+ * Longest edge the full-screen preview decodes.
+ *
+ * A phone screen is about 1200 pixels wide; 2048 keeps a photo sharp when it is
+ * zoomed by the platform's own viewer without decoding twelve megapixels into
+ * 48 MB for a dialog.
+ */
+private const val LIGHTBOX_IMAGE_MAX_PX = 2048
+
+/**
  * A token-aware HTTP image loader for transcript images.
  *
  * The harness serves image bytes behind the same bearer token as the rest of the
@@ -228,8 +249,10 @@ object ImageBytesCache {
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    private val cache = object : LruCache<String, ByteArray>(24) {
-        override fun sizeOf(key: String, value: ByteArray): Int = value.size / 1024
+    private val cache = object : LruCache<String, ByteArray>(IMAGE_CACHE_BYTES) {
+        // Bytes, not kilobytes: sized in kilobytes the ceiling was 24 KB, so every
+        // photo was evicted the moment it was put and every scroll re-downloaded it.
+        override fun sizeOf(key: String, value: ByteArray): Int = value.size
     }
 
     /**
@@ -279,24 +302,53 @@ sealed interface ImageLoad {
  *
  * @param url the raw image route.
  * @param token the bearer token authorizing the request.
+ * @param maxEdgePx the longest edge the destination can actually use, so a 12 MP
+ *   photo is not decoded into 48 MB to be drawn in a 64-point tile.
  * @param attempt a counter the caller bumps to retry a failed load.
  * @return the load's current state.
  */
 @Composable
-fun rememberImageLoad(url: String, token: String?, attempt: Int = 0): ImageLoad {
-    val state by produceState<ImageLoad>(initialValue = ImageLoad.Loading, url, token, attempt) {
+fun rememberImageLoad(url: String, token: String?, maxEdgePx: Int = 1024, attempt: Int = 0): ImageLoad {
+    val state by produceState<ImageLoad>(initialValue = ImageLoad.Loading, url, token, attempt, maxEdgePx) {
         val bytes = ImageBytesCache.load(url, token)
         value = if (bytes == null) {
             ImageLoad.Failed
         } else {
-            val decoded = withContext(Dispatchers.Default) {
-                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
-            }
+            val decoded = withContext(Dispatchers.Default) { decodeBounded(bytes, maxEdgePx) }
             if (decoded == null) ImageLoad.Failed else ImageLoad.Ready(decoded)
         }
     }
     return state
 }
+
+/**
+ * Decode one encoded image, skipping pixels until its long edge fits.
+ *
+ * @param bytes the encoded image.
+ * @param maxEdgePx the longest edge the destination can use.
+ * @return the decoded bitmap, or null when the bytes are not an image.
+ */
+private fun decodeBounded(bytes: ByteArray, maxEdgePx: Int): ImageBitmap? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+    val options = BitmapFactory.Options().apply {
+        inSampleSize = sampleSizeFor(bounds.outWidth, bounds.outHeight, maxEdgePx)
+    }
+    return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)?.asImageBitmap()
+}
+
+/**
+ * One design edge converted to the pixels this screen will really use.
+ *
+ * The extra quarter covers the density rounding and a light upscale by
+ * `ContentScale`, which costs a few pixels and avoids a visibly soft image.
+ *
+ * @param edge the edge in dp.
+ * @return the target pixel size for decoding.
+ */
+@Composable
+private fun edgePx(edge: Dp): Int = with(LocalDensity.current) { (edge.toPx() * 1.25f).roundToInt() }
 
 /** One image reference as the transcript holds it. */
 data class ImageRef(
@@ -381,7 +433,7 @@ fun AttachmentGallery(
 private fun TileImage(image: ImageRef, token: String?, onClick: () -> Unit) {
     val palette = LocalHarness.current
     var attempt by remember(image.url) { mutableStateOf(0) }
-    val load = rememberImageLoad(image.url, token, attempt)
+    val load = rememberImageLoad(image.url, token, edgePx(TILE_IMAGE_EDGE), attempt)
     Box(
         Modifier
             .size(TILE_IMAGE_EDGE)
@@ -422,7 +474,7 @@ private fun SingleImage(
 ) {
     val palette = LocalHarness.current
     var attempt by remember(image.url) { mutableStateOf(0) }
-    val load = rememberImageLoad(image.url, token, attempt)
+    val load = rememberImageLoad(image.url, token, edgePx(SINGLE_IMAGE_EDGE), attempt)
     val aspect = aspectOf(image, load)
     val box = if (aspect >= 1f) {
         Modifier.width(SINGLE_IMAGE_EDGE).height(SINGLE_IMAGE_EDGE / aspect)
@@ -564,7 +616,7 @@ private fun FailedImage(retry: () -> Unit, compact: Boolean) {
 fun ImageLightbox(image: ImageRef, token: String?, onDismiss: () -> Unit) {
     val palette = LocalHarness.current
     var attempt by remember(image.url) { mutableStateOf(0) }
-    val load = rememberImageLoad(image.url, token, attempt)
+    val load = rememberImageLoad(image.url, token, LIGHTBOX_IMAGE_MAX_PX, attempt)
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
