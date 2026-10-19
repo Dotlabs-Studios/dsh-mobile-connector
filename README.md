@@ -153,6 +153,7 @@ Then make sure the profile mounts it. In `%USERPROFILE%\.dsh\profiles\desktop\co
         # debug: true            # richer error codes in failure replies
         # approvalWaitMs: 120000 # how long an approval waits for the phone
         # questionWaitMs: 120000 # how long a question waits for the phone
+        # allowRemoteFullAccess: true  # false: a phone may not choose a preset that stops the agent asking
         # protectedPaths: []     # more paths /mobile/file must refuse (the harness home is always refused)
 ```
 
@@ -367,6 +368,7 @@ What the design does defend:
 - **A label is not a credential.** The device name is a display string. It cannot recover a token, and two phones may share one.
 - **Tokens can be rotated and revoked.** A device that still holds its token can trade it for a new one; `DELETE /mobile/devices/{id}` cuts one off (or the caller itself) without editing a file.
 - **The harness's own files are not for the phone.** `/mobile/file` refuses anything inside `$DSH_HOME` — the device table and the provider credentials live there — and any `.credentials*` file, whatever path the client typed.
+- **Full access can be reserved to the PC.** `allowRemoteFullAccess: false` makes a phone's attempt to pick a preset whose approval knob is `never` a `403 permission/remote-forbidden` — the check reads what the preset *does*, not what it is called. Leave it on if you want the phone to be able to stop the agent asking.
 - **The failure mode is closed.** `allowed-once` is the only outcome that grants anything; anything else, including a malformed answer, denies.
 - **No invented promises.** There is no "always allow", because the harness has no persistent permission store to honour it.
 - **Nothing survives a restart.** Pending approvals and questions are in-memory, so a card on the phone cannot answer a turn that is already over.

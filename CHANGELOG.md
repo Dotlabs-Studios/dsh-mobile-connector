@@ -42,6 +42,9 @@
 
 **Security**
 
+- **`allowRemoteFullAccess: false`** reserves *full access* to the PC: a phone switching a chat to a preset whose
+  resolved approval knob is `never` is answered `403 permission/remote-forbidden` before the host is touched. The check
+  reads what the preset does, not what it is called; the default keeps the old behaviour.
 - **Pairing no longer accepts a device name as a credential.** With the code spent, `POST /mobile/pair` used to hand
   out the token of any device whose label the caller guessed — the label is printed in `/mobile/status`, so on a shared
   network it was a password made of a phone model. The two ways in are now a single-use code, or the token the caller

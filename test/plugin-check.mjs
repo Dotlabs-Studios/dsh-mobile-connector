@@ -1793,6 +1793,32 @@ function ok(condition, label) {
   presetSwitches.length = 0
 }
 
+// ── a host may refuse a remote full-access switch ────────────────────────────
+{
+  const original = instance.config.allowRemoteFullAccess
+  instance.config.allowRemoteFullAccess = false
+
+  const blocked = await authed('/mobile/permissions', {
+    method: 'POST',
+    body: JSON.stringify({ sessionId: 'session-aaaa', preset: 'danger-full-access' }),
+  })
+  ok(blocked.status === 403, `a preset that stops the agent asking is refused when the host says so (got ${blocked.status})`)
+  ok(blocked.body.error.code === 'permission/remote-forbidden', 'the refusal has its own code')
+  ok(presetSwitches.length === 0, 'nothing reached the host')
+
+  // The same switch on a preset that still asks is allowed: the check reads the
+  // approval knob, not the preset's name.
+  const asks = await authed('/mobile/permissions', {
+    method: 'POST',
+    body: JSON.stringify({ sessionId: 'session-aaaa', preset: 'read-only' }),
+  })
+  ok(asks.status === 200, `a preset that still asks is still switchable (got ${asks.status})`)
+
+  instance.config.allowRemoteFullAccess = original
+  chosenPresets.set('session-aaaa', 'workspace-write')
+  presetSwitches.length = 0
+}
+
 // ── link previews ────────────────────────────────────────────────────────────
 {
   webPages.set('https://example.com/docs/guide', {

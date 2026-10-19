@@ -376,7 +376,10 @@ validated against the host's own catalog rather than forwarded, because `set` ha
 not become a permission (`400 permission/unknown`); and the switch is recorded, since `set` appends a
 `permission/preset` entry to the session log, making a change from a phone auditable on the PC (`lib/index.js:3376`).
 `404 permission/no-session` means that chat is not loaded on this harness; `409 permission/refused` carries the host's
-own words when its admission check refuses the switch.
+own words when its admission check refuses the switch. With `allowRemoteFullAccess: false` in the plugin row, a preset
+whose resolved **approval knob** is `never` is refused with `403 permission/remote-forbidden` before anything reaches
+the host: the check reads what the preset does rather than what it is named, so a renamed "full access" that still asks
+stays switchable.
 
 ### GET /mobile/file
 
@@ -519,6 +522,7 @@ Every failure uses the envelope above. Codes raised by this plugin:
 | `permission/unknown` | 400 | No preset by that name in the host's own catalog. |
 | `permission/no-session` | 404 | That chat is not loaded on this harness. |
 | `permission/refused` | 409 | The host's admission check refused the switch; its own message is forwarded. |
+| `permission/remote-forbidden` | 403 | `allowRemoteFullAccess: false` and the preset stops the agent asking. |
 | `permission/unavailable` | 503 | This harness mounts no permission presets. |
 | `unavailable` | 503 | A required host service is missing: session controller, workspace controller, attachment store, file uploads or question service. |
 

@@ -3946,6 +3946,25 @@ class MobileSync {
     if (session === undefined) {
       throw new HttpError(404, 'permission/no-session', 'that session is not loaded on this harness')
     }
+    // A host may refuse to be handed a preset that stops the agent asking, from a
+    // phone. The check reads the preset's *approval knob* rather than its name: a
+    // preset called "full access" that still asks is not the risky one, and a
+    // renamed one that stops asking is.
+    if (this.config?.allowRemoteFullAccess === false) {
+      let spec = null
+      try {
+        spec = service.resolve(preset)
+      } catch {
+        spec = null
+      }
+      if (spec !== null && spec.approval === 'never') {
+        throw new HttpError(
+          403,
+          'permission/remote-forbidden',
+          'this host does not allow a phone to choose a preset that stops asking for permission',
+        )
+      }
+    }
     try {
       service.set(session, preset)
     } catch (error) {
