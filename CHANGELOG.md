@@ -152,6 +152,9 @@ turns the app from a reader into a remote control that can tell you when it need
 - 362 JVM tests, including the contract fixtures captured by the plugin suite and the new pure modules: image sizing,
   the watch feed, address failover, transcript search, message quoting and the unread map's codec.
 - `gradlew lintDebug` clean; generated strings in sync with the sixteen tables (369 resources).
+- 13 smoke checks against the **UI stub** (`test/ui-stub-check.mjs`, now in CI): it boots the stand-in harness and
+  asserts the routes a screen cannot render without — pair, status, session list, a transcript with a message and a tool
+  card, and the 404 envelope.
 - `assembleRelease` checked: 11.98 MB, `versionCode 4` / `versionName 0.3.0`, package `dev.dsh.mobile`,
   signed with the standard Android debug key — the documented signing model of this project, and the reason the size
   is what it is: R8 is still off (see below).
