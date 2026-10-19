@@ -12,8 +12,10 @@
 -->
 <resources>
     <string name="action_attach">Aggiungi una foto</string>
+    <string name="action_cancel">Annulla</string>
     <string name="action_new_session">Nuova chat</string>
     <string name="action_pair">Accoppia</string>
+    <string name="action_revoke">Revoca</string>
     <string name="action_send">Invia</string>
     <string name="action_unpair">Scollega questo telefono</string>
     <string name="app_name">DeepSeek Harness</string>
@@ -81,6 +83,10 @@
     <string name="delivery_share_no_app">Nessuna app sul telefono può ricevere «%1$s».</string>
     <string name="delivery_store_refused_entry">il telefono non ha accettato il file in Download</string>
     <string name="delivery_store_refused_stream">il telefono non ha aperto il file in Download</string>
+    <string name="devices_load_failed">Elenco dei dispositivi non disponibile.</string>
+    <string name="devices_revoke_body">Il token smette di funzionare subito: quel telefono dovrà accoppiarsi di nuovo con un codice dal PC.</string>
+    <string name="devices_revoke_self_body">Stai revocando questo telefono: tornerai alla schermata di accoppiamento.</string>
+    <string name="devices_revoke_title">Revocare «%1$s»?</string>
     <string name="empty_messages">Ancora nessun messaggio: scrivi qui sotto per iniziare.</string>
     <string name="empty_sessions">Nessuna chat ancora</string>
     <string name="empty_sessions_hint">Tocca «Nuova chat» per scegliere un progetto del PC e iniziare: comparirà anche nella sidebar del desktop.</string>
@@ -121,9 +127,10 @@
     <string name="error_nowhere">nessun indirizzo</string>
     <string name="error_pairing_expired">Codice scaduto: riavvia DeepSeek Harness per generarne uno nuovo.</string>
     <string name="error_pairing_failed">Accoppiamento non riuscito.</string>
+    <string name="error_pairing_rate_limited">Troppi tentativi da questo indirizzo: aspetta un minuto e riprova.</string>
     <string name="error_pairing_refused">Codice errato. Ricontrolla il log dell\'harness.</string>
     <string name="error_pairing_unreachable">Non riesco a raggiungere %1$s. Stessa Wi-Fi? Tailscale attivo?</string>
-    <string name="error_pairing_used">Questo codice è già stato usato. Riavvia DeepSeek Harness: ne genera uno nuovo e lo scrive nel log.</string>
+    <string name="error_pairing_used">Questo codice è già stato usato. Sul PC apri http://127.0.0.1:4380/mobile/pairing-code per un codice nuovo, oppure riavvia DeepSeek Harness.</string>
     <string name="error_path_is_folder">Questo link punta a una cartella, non a un file.</string>
     <string name="error_path_refused">Il PC rifiuta questo percorso: %1$s</string>
     <string name="error_permission_session_gone">L\'harness non tiene più questa sessione: riaprila dall\'elenco e riprova.</string>
@@ -191,6 +198,7 @@
     <string name="pair_device_example">Il mio telefono</string>
     <string name="pair_host_example">192.168.1.20 oppure 100.101.102.103</string>
     <string name="pair_tailscale">Fuori casa? Attiva Tailscale su entrambi i dispositivi e usa l\'indirizzo Tailscale del PC (100.x.x.x).</string>
+    <string name="pairing_self_revoked">Questo telefono è stato revocato. Accoppia di nuovo con un codice dal PC.</string>
     <string name="pairing_subtitle">Collega il telefono al tuo harness per continuare le chat ovunque.</string>
     <string name="pairing_title">DeepSeek Harness</string>
     <string name="perm_cancel">Annulla</string>
@@ -265,11 +273,16 @@
     <string name="session_up_one">Su di un livello</string>
     <string name="sessions_title">Chat</string>
     <string name="settings_connected">PC collegato</string>
+    <string name="settings_device_current">Questo telefono</string>
+    <string name="settings_device_last_seen">Ultimo contatto %1$s</string>
+    <string name="settings_device_never">Mai</string>
+    <string name="settings_devices_note">Ogni telefono elencato qui può agire sul PC finché il suo token esiste.</string>
     <string name="settings_language">Lingua</string>
     <string name="settings_language_note">La scelta vale subito e resta anche dopo un riavvio.</string>
     <string name="settings_not_connected">Nessun PC collegato</string>
     <string name="settings_section_appearance">Aspetto</string>
     <string name="settings_section_connection">Collegamento</string>
+    <string name="settings_section_devices">Dispositivi</string>
     <string name="settings_theme_note">Le due palette sono complete: la scelta cambia solo i colori.</string>
     <string name="staging_file_too_large">file troppo grande</string>
     <string name="staging_file_unreadable">File non leggibile</string>

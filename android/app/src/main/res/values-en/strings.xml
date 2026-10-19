@@ -12,8 +12,10 @@
 -->
 <resources>
     <string name="action_attach">Add a photo</string>
+    <string name="action_cancel">Cancel</string>
     <string name="action_new_session">New chat</string>
     <string name="action_pair">Pair</string>
+    <string name="action_revoke">Revoke</string>
     <string name="action_send">Send</string>
     <string name="action_unpair">Unpair this phone</string>
     <string name="app_name">DeepSeek Harness</string>
@@ -81,6 +83,10 @@
     <string name="delivery_share_no_app">No app on this phone can receive «%1$s».</string>
     <string name="delivery_store_refused_entry">the phone did not accept the file into Download</string>
     <string name="delivery_store_refused_stream">the phone did not open the file in Download</string>
+    <string name="devices_load_failed">The device list is not available.</string>
+    <string name="devices_revoke_body">The token stops working immediately: that phone has to pair again with a code from the PC.</string>
+    <string name="devices_revoke_self_body">You are revoking this phone: you will go back to pairing.</string>
+    <string name="devices_revoke_title">Revoke “%1$s”?</string>
     <string name="empty_messages">No messages yet: write below to get started.</string>
     <string name="empty_sessions">No chats yet</string>
     <string name="empty_sessions_hint">Tap «New chat» to pick a project on the PC and start: it will show up in the desktop sidebar too.</string>
@@ -121,9 +127,10 @@
     <string name="error_nowhere">no address</string>
     <string name="error_pairing_expired">The code expired: restart DeepSeek Harness to generate a new one.</string>
     <string name="error_pairing_failed">Pairing failed.</string>
+    <string name="error_pairing_rate_limited">Too many attempts from this address: wait a minute and try again.</string>
     <string name="error_pairing_refused">Wrong code. Check the harness log again.</string>
     <string name="error_pairing_unreachable">I cannot reach %1$s. Same Wi-Fi? Is Tailscale up?</string>
-    <string name="error_pairing_used">This code has already been used. Restart DeepSeek Harness: it generates a new one and writes it to the log.</string>
+    <string name="error_pairing_used">This code has already been used. On the PC open http://127.0.0.1:4380/mobile/pairing-code for a new one, or restart DeepSeek Harness.</string>
     <string name="error_path_is_folder">This link points at a folder, not a file.</string>
     <string name="error_path_refused">The PC refuses this path: %1$s</string>
     <string name="error_permission_session_gone">The harness no longer holds this session: reopen it from the list and try again.</string>
@@ -191,6 +198,7 @@
     <string name="pair_device_example">My phone</string>
     <string name="pair_host_example">192.168.1.20 or 100.101.102.103</string>
     <string name="pair_tailscale">Out of the house? Turn on Tailscale on both devices and use the PC\'s Tailscale address (100.x.x.x).</string>
+    <string name="pairing_self_revoked">This phone has been revoked. Pair again with a code from the PC.</string>
     <string name="pairing_subtitle">Connect your phone to your harness so you can carry on your chats anywhere.</string>
     <string name="pairing_title">DeepSeek Harness</string>
     <string name="perm_cancel">Cancel</string>
@@ -265,11 +273,16 @@
     <string name="session_up_one">Up one level</string>
     <string name="sessions_title">Chat</string>
     <string name="settings_connected">PC connected</string>
+    <string name="settings_device_current">This phone</string>
+    <string name="settings_device_last_seen">Last contact %1$s</string>
+    <string name="settings_device_never">Never</string>
+    <string name="settings_devices_note">Every phone listed here can act on the PC while its token exists.</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_note">The choice takes effect at once and survives a restart.</string>
     <string name="settings_not_connected">No PC connected</string>
     <string name="settings_section_appearance">Appearance</string>
     <string name="settings_section_connection">Connection</string>
+    <string name="settings_section_devices">Devices</string>
     <string name="settings_theme_note">Both palettes are complete: this choice only changes the colours.</string>
     <string name="staging_file_too_large">File too large</string>
     <string name="staging_file_unreadable">File couldn\'t be read</string>

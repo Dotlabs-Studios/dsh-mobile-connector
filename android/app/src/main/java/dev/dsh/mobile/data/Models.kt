@@ -58,6 +58,34 @@ data class Workspace(
 @Serializable
 data class WorkspaceListResponse(val items: List<Workspace> = emptyList())
 
+/** One device the harness has paired. */
+@Serializable
+data class PairedDevice(
+    /** Stable id the host derives from the token; what a revoke names. */
+    val id: String = "",
+    val name: String = "",
+    @SerialName("createdAt") val createdAt: Long = 0L,
+    @SerialName("lastSeenAt") val lastSeenAt: Long = 0L,
+    /** True for the device making the request. */
+    val current: Boolean = false,
+) {
+    /** The label to draw, falling back to the id for a device that reported none. */
+    val displayName: String
+        get() = name.takeIf { it.isNotBlank() } ?: id
+}
+
+/** The paired-device list response. */
+@Serializable
+data class DeviceListResponse(val items: List<PairedDevice> = emptyList())
+
+/** The answer to revoking one device; `self` when the caller revoked itself. */
+@Serializable
+data class DeviceRevoked(
+    val revoked: Boolean = false,
+    val id: String = "",
+    val self: Boolean = false,
+)
+
 /** The response to adopting a host directory as a project. */
 @Serializable
 data class WorkspaceCreated(
@@ -223,14 +251,6 @@ data class StatusResponse(
     @SerialName("sessionCount") val sessionCount: Int = 0,
     @SerialName("liveCount") val liveCount: Int = 0,
     val version: Int = 0,
-)
-
-/** One device the harness has paired. */
-@Serializable
-data class PairedDevice(
-    val name: String = "",
-    @SerialName("createdAt") val createdAt: Long = 0L,
-    @SerialName("lastSeenAt") val lastSeenAt: Long = 0L,
 )
 
 /** The response to creating a session on the host. */

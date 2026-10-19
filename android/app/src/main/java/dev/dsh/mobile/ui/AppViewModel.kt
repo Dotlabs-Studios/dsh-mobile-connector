@@ -32,6 +32,7 @@ import dev.dsh.mobile.data.ModelInfo
 import dev.dsh.mobile.data.ModelSelection
 import dev.dsh.mobile.data.OutgoingFile
 import dev.dsh.mobile.data.OutgoingImage
+import dev.dsh.mobile.data.PairedDevice
 import dev.dsh.mobile.data.PermissionCatalog
 import dev.dsh.mobile.data.PreviewResponse
 import dev.dsh.mobile.data.PermissionOption
@@ -542,6 +543,65 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var settingsOpen by mutableStateOf(false)
         private set
 
+    /**
+     * The phones paired with this PC, as the host lists them.
+     *
+     * Read when the settings sheet opens rather than on every poll: this is a
+     * question you ask before lending the phone, not one that changes while you
+     * watch.
+     */
+    var devices by mutableStateOf<List<PairedDevice>>(emptyList())
+        private set
+    var devicesLoading by mutableStateOf(false)
+        private set
+    var devicesError by mutableStateOf<TextRef?>(null)
+        private set
+
+    /** Read the paired devices for the settings sheet. */
+    fun loadDevices() {
+        val client = api ?: return
+        if (devicesLoading) return
+        devicesLoading = true
+        viewModelScope.launch {
+            try {
+                devices = client.devices()
+                devicesError = null
+            } catch (error: ApiException) {
+                // An older host has no device route at all; saying so is better
+                // than an empty list that reads as "no phones paired".
+                devicesError = if (error.status == 404) TextRef.of(R.string.devices_load_failed) else describe(error)
+            } finally {
+                devicesLoading = false
+            }
+        }
+    }
+
+    /**
+     * Revoke one paired device.
+     *
+     * Revoking *this* device is how the app unpairs: the token is dead the moment
+     * the host answers, so the phone detaches itself and says why.
+     *
+     * @param deviceId the id the device list reported.
+     */
+    fun revokeDevice(deviceId: String) {
+        val client = api ?: return
+        viewModelScope.launch {
+            try {
+                val result = client.revokeDevice(deviceId)
+                devices = devices.filterNot { it.id == deviceId }
+                if (result.self) {
+                    val host = hostInput
+                    unpair()
+                    hostInput = host
+                    pairingError = TextRef.of(R.string.pairing_self_revoked)
+                }
+            } catch (error: ApiException) {
+                devicesError = describe(error)
+            }
+        }
+    }
+
     /** The palette the app draws with, as the user chose it. */
     var themeMode by mutableStateOf(store.themeMode)
         private set
@@ -636,6 +696,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     "pairing-refused" -> TextRef.of(R.string.error_pairing_refused)
                     "pairing-closed" -> TextRef.of(R.string.error_pairing_used)
                     "pairing-expired" -> TextRef.of(R.string.error_pairing_expired)
+                    "rate-limited" -> TextRef.of(R.string.error_pairing_rate_limited)
+                    "loopback-only" -> TextRef.of(R.string.error_pairing_used)
                     "transport" -> TextRef.of(R.string.error_pairing_unreachable, host)
                     else -> TextRef.of(error) ?: TextRef.of(R.string.error_pairing_failed)
                 }

@@ -1,0 +1,12 @@
+settings_section_devices	Dispositivi	Devices
+settings_devices_note	Ogni telefono elencato qui può agire sul PC finché il suo token esiste.	Every phone listed here can act on the PC while its token exists.
+settings_device_current	Questo telefono	This phone
+settings_device_last_seen	Ultimo contatto %1$s	Last contact %1$s
+settings_device_never	Mai	Never
+action_revoke	Revoca	Revoke
+action_cancel	Annulla	Cancel
+devices_revoke_title	Revocare «%1$s»?	Revoke “%1$s”?
+devices_revoke_body	Il token smette di funzionare subito: quel telefono dovrà accoppiarsi di nuovo con un codice dal PC.	The token stops working immediately: that phone has to pair again with a code from the PC.
+devices_revoke_self_body	Stai revocando questo telefono: tornerai alla schermata di accoppiamento.	You are revoking this phone: you will go back to pairing.
+devices_load_failed	Elenco dei dispositivi non disponibile.	The device list is not available.
+pairing_self_revoked	Questo telefono è stato revocato. Accoppia di nuovo con un codice dal PC.	This phone has been revoked. Pair again with a code from the PC.

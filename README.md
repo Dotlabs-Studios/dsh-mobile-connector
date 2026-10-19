@@ -229,6 +229,7 @@ Android 8.0 (API 26) or newer. The release APK published with this project is si
 - **Change the access level** with the chip beside the composer: *Read only*, *Write in project*, *Full access* — the same presets as the desktop, with the same confirmation checkbox for full access, and the change recorded in the session log as a `permission/preset` entry.
 - **Pick the model**, with context window, vision support and reasoning effort where the model declares them — note that this is the *PC's* selection, exactly as the desktop's own picker.
 - **Tap a link** for a preview read by the PC, **tap a file link** to read the file itself, and open, download or share **artefacts** the agent declared with `present`.
+- **Manage the paired phones** — Settings lists every device with when it was last seen, and revokes one, or this one, without touching the PC.
 - **Theme and language**: system / light / dark with two complete palettes, and system / Italian / English.
 
 ### What it looks like

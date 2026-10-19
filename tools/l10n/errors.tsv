@@ -1,7 +1,8 @@
 error_host_required	Inserisci l\'indirizzo del PC.	Enter the PC address.
 error_code_required	Inserisci il codice di accoppiamento.	Enter the pairing code.
 error_pairing_refused	Codice errato. Ricontrolla il log dell\'harness.	Wrong code. Check the harness log again.
-error_pairing_used	Questo codice è già stato usato. Riavvia DeepSeek Harness: ne genera uno nuovo e lo scrive nel log.	This code has already been used. Restart DeepSeek Harness: it generates a new one and writes it to the log.
+error_pairing_used	Questo codice è già stato usato. Sul PC apri http://127.0.0.1:4380/mobile/pairing-code per un codice nuovo, oppure riavvia DeepSeek Harness.	This code has already been used. On the PC open http://127.0.0.1:4380/mobile/pairing-code for a new one, or restart DeepSeek Harness.
+error_pairing_rate_limited	Troppi tentativi da questo indirizzo: aspetta un minuto e riprova.	Too many attempts from this address: wait a minute and try again.
 error_pairing_expired	Codice scaduto: riavvia DeepSeek Harness per generarne uno nuovo.	The code expired: restart DeepSeek Harness to generate a new one.
 error_pairing_unreachable	Non riesco a raggiungere %1$s. Stessa Wi-Fi? Tailscale attivo?	I cannot reach %1$s. Same Wi-Fi? Is Tailscale up?
 error_pairing_failed	Accoppiamento non riuscito.	Pairing failed.

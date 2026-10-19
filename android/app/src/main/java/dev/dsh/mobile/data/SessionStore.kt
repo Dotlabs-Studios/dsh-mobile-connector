@@ -76,14 +76,21 @@ class SessionStore(context: Context) {
         get() = !host.isNullOrBlank() && !token.isNullOrBlank()
 
     /**
-     * Drop the pairing, forcing a new one on next launch.
+     * Drop the pairing, keeping this phone's own choices.
      *
-     * The folds go with it: they are host project ids, and the next host will have
-     * a registry of its own. Everything else in the store is per-pairing too, and
-     * the theme is re-chosen in the settings that are already open at that point.
+     * The folds go with it, because they are host project ids and mean nothing on
+     * another host. The theme and the language stay: they are decisions about
+     * *this phone*, not about the harness it happened to be paired with, and an
+     * unpair repainting the app and switching its language was never what anyone
+     * meant by it.
      */
     fun clear() {
-        prefs.edit().clear().apply()
+        prefs.edit()
+            .remove(KEY_HOST)
+            .remove(KEY_TOKEN)
+            .remove(KEY_DEVICE)
+            .remove(KEY_COLLAPSED)
+            .apply()
     }
 
     /**

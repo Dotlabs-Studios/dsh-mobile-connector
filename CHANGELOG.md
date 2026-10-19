@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Android client — `dev.dsh.mobile`
+
+- **Polling is incremental and quieter.** The open chat asks for entries after the newest one it holds (`afterSeq`)
+  instead of re-downloading the newest sixty every 2.5 s; both loops slow down when no turn is running and back off to
+  a minute on failure. One owner — the activity — starts and stops them: the list used to keep polling behind an open
+  chat, because a per-screen stop-effect never ran for the screen that was not composed.
+- **A refused send no longer eats the draft.** The composer's text lives in the view model and is cleared only once the
+  host accepts the message; a `sending` flag stops a second tap from re-posting spent receipts.
+- **A gap in the tail is recovered instead of spliced.** If events were appended while the app was away and fell out of
+  the host's newest window, the window is replaced with a contiguous one; "load older" now clears its own flag through
+  the state machine, so an empty page stops coming back as a button on the next poll.
+- **Strings follow the language you chose.** Titles and headings read through a locale-pinned context; the application
+  context had been answering in the phone's language, which is how an Italian list grew a "No project" heading.
+- **Devices are manageable from the phone.** Settings lists every paired device with when it was last seen, and revokes
+  one — including this one, which returns to pairing with the address kept. Unpairing no longer resets the theme and the
+  language: those are this phone's choices, not the harness's.
+- Search is debounced (one request per pause, not per keystroke), and the queue-or-steer choice appears only when there
+  is something to send.
+
 ### Plugin — `dsh-plugin-mobile-sync`
 
 **Security**

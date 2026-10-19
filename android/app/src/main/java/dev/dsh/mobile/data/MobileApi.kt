@@ -175,6 +175,27 @@ class MobileApi(
     suspend fun status(): StatusResponse = call("/mobile/status")
 
     /**
+     * List the phones paired with this harness.
+     *
+     * Ids, labels and timestamps only: the host never sends a device's token, not
+     * even its own.
+     */
+    suspend fun devices(): List<PairedDevice> = call<DeviceListResponse>("/mobile/devices").items
+
+    /**
+     * Revoke one paired device, or this one.
+     *
+     * Revoking the *caller* is how this app unpairs without asking the PC: the
+     * token dies on the very next request and the answer says `self = true`.
+     *
+     * @param deviceId the id the device list reported.
+     */
+    suspend fun revokeDevice(deviceId: String): DeviceRevoked = call(
+        path = "/mobile/devices/${encodeQueryValue(deviceId)}",
+        method = "DELETE",
+    )
+
+    /**
      * List the sessions the harness knows, newest first.
      *
      * @param includeSubagents whether to include subagent child sessions.
