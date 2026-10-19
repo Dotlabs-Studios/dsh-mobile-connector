@@ -20,6 +20,12 @@
 - **Devices are manageable from the phone.** Settings lists every paired device with when it was last seen, and revokes
   one — including this one, which returns to pairing with the address kept. Unpairing no longer resets the theme and the
   language: those are this phone's choices, not the harness's.
+- **An approval card shows what is being approved.** The command about to run, or the file and the text about to be
+  written, is drawn inside the card from the tool call the transcript already holds — the buttons used to be the only
+  thing on it that named the act.
+- **Photos are downscaled before upload.** A twelve-megapixel JPEG is sampled on decode, scaled to a 1568-pixel long
+  edge and re-encoded on an IO thread; small photos keep their original bytes, GIF is untouched, and transcript images
+  decode at the size they are drawn instead of full resolution.
 - Search is debounced (one request per pause, not per keystroke), and the queue-or-steer choice appears only when there
   is something to send.
 

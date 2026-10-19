@@ -65,6 +65,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.dsh.mobile.R
 import dev.dsh.mobile.data.DeclaredFile
+import dev.dsh.mobile.data.ApprovalPreview
 import dev.dsh.mobile.data.DiffKind
 import dev.dsh.mobile.data.DiffLine
 import dev.dsh.mobile.data.QuestionAnswer
@@ -798,6 +799,7 @@ fun DiffView(lines: List<DiffLine>, path: String?, modifier: Modifier = Modifier
  * @param outcome the verdict already recorded, or null while the request is open.
  * @param answerable whether the host still holds the request, so it can be answered here.
  * @param busy whether this app is answering it right now.
+ * @param preview the command or file the call is about, when the transcript holds it.
  * @param onAllow grants one execution.
  * @param onReject refuses it.
  * @param modifier layout for the card.
@@ -811,6 +813,7 @@ fun ApprovalCard(
     busy: Boolean,
     onAllow: () -> Unit,
     onReject: () -> Unit,
+    preview: ApprovalPreview? = null,
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalHarness.current
@@ -850,6 +853,29 @@ fun ApprovalCard(
             if (prompt.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
                 Text(text = prompt, style = HarnessType.secondary, color = palette.textSecondary)
+            }
+            // What is actually being approved: the command about to run, or the
+            // file and text about to be written. Without it the two buttons ask a
+            // question the card has not stated.
+            if (preview != null) {
+                preview.command?.let { command ->
+                    Spacer(Modifier.height(10.dp))
+                    ApprovalCode(text = command, palette = palette)
+                }
+                preview.path?.let { path ->
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = path,
+                        style = HarnessType.codeBlock.copy(fontSize = HarnessType.caption.fontSize),
+                        color = palette.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    preview.body?.let { body ->
+                        Spacer(Modifier.height(6.dp))
+                        ApprovalCode(text = body, palette = palette)
+                    }
+                }
             }
             Spacer(Modifier.height(12.dp))
             when {
@@ -902,6 +928,35 @@ fun ApprovalCard(
                 }
             }
         }
+    }
+}
+
+/**
+ * One monospaced block inside an approval card.
+ *
+ * Capped in lines rather than cut in text: a command or a file body can be longer
+ * than the card, and the reader needs the beginning — the part that says what will
+ * happen — without the transcript turning into a diff viewer.
+ *
+ * @param text the command or the text about to be written.
+ * @param palette the active palette.
+ */
+@Composable
+private fun ApprovalCode(text: String, palette: HarnessPalette) {
+    HarnessSurface(
+        modifier = Modifier.fillMaxWidth(),
+        background = palette.surfaceSunken,
+        border = palette.borderSubtle,
+        radius = HarnessRadius.md,
+    ) {
+        Text(
+            text = text,
+            style = HarnessType.codeBlock,
+            color = palette.textPrimary,
+            maxLines = 10,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(10.dp),
+        )
     }
 }
 

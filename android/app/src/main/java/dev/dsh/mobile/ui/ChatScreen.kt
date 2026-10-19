@@ -80,6 +80,7 @@ import dev.dsh.mobile.data.OutgoingFile
 import dev.dsh.mobile.data.OutgoingImage
 import dev.dsh.mobile.data.PermissionOption
 import dev.dsh.mobile.data.TranscriptItem
+import dev.dsh.mobile.data.approvalPreview
 import dev.dsh.mobile.data.attachmentName
 import dev.dsh.mobile.data.buildTranscript
 import dev.dsh.mobile.data.parseQuestionAnswers
@@ -126,6 +127,14 @@ fun ChatScreen(viewModel: AppViewModel) {
     }
 
     val items = remember(viewModel.entries) { buildTranscript(viewModel.entries) }
+    // The arguments of the call an approval is asking about, when the transcript
+    // holds them: a card that shows the command or the text about to be written is
+    // the difference between approving a name and approving an act.
+    val stepsByCallId = remember(items) {
+        items.filterIsInstance<TranscriptItem.ToolStep>()
+            .mapNotNull { step -> step.callId?.let { id -> id to step } }
+            .toMap()
+    }
     val liveApprovals = viewModel.approvalsFor(sessionId)
     // An approval whose log entry has not arrived yet — the newest page may
     // predate it — still has to be answerable, so anything the host is holding
@@ -350,6 +359,7 @@ fun ChatScreen(viewModel: AppViewModel) {
                                             busy = live != null && viewModel.answeringApproval == live.id,
                                             onAllow = { live?.let { viewModel.answerApproval(it, "allowed-once") } },
                                             onReject = { live?.let { viewModel.answerApproval(it, "rejected") } },
+                                            preview = approvalPreview(item.callId?.let { id -> stepsByCallId[id]?.arguments }),
                                         )
                                     }
 
