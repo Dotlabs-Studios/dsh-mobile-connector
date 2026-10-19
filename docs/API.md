@@ -1,5 +1,11 @@
 ## HTTP API reference
 
+> **On the line numbers.** References of the form `lib/index.js:NNNN` point at the
+> source this section was written against, and the file has since grown in the middle
+> of it: treat a number past the pairing section as a hint rather than a coordinate.
+> The prose, the tables and — above all — the route's own behaviour are what this
+> document promises; a stale pointer is a documentation bug, not a contract change.
+
 `dsh-plugin-mobile-sync` owns its own `node:http` listener, on the `host` and `port` from its plugin configuration and
 nowhere near the Web GUI's loopback server. Both have safe defaults — `127.0.0.1:4380`, which admits no phone until
 `host` is set — and a nonsensical `port` is refused at boot rather than bound (`lib/index.js:2269`, `2276`).
