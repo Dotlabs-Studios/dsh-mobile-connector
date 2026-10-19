@@ -10,6 +10,7 @@ chat_search_none	Nessun risultato	No matches
 chat_search_matches	%1$d risultato|%1$d risultati	%1$d match|%1$d matches
 chat_outbox_pending	%1$d messaggio in coda|%1$d messaggi in coda	%1$d message queued|%1$d messages queued
 chat_outbox_note	Partono appena il PC risponde	They go out as soon as the PC answers
+chat_quote	Cita	Quote
 chat_notice_event	evento	event
 chat_back	Indietro	Back
 chat_new_elsewhere	Nuova chat in un'altra cartella	New chat in another folder

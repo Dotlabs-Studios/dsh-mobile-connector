@@ -239,6 +239,7 @@ Android 8.0 (API 26) or newer. The release APK published with this project is si
 - **Make the phone's lock part of the decision** — *Settings → Alerts → Ask before acting* puts the device-credential prompt between the tap and the host for approving a tool and for granting *full access*. Off by default; a phone with no lock configured has nothing to confirm with and proceeds.
 - **See what changed since you last looked** — a row carries one dot when its chat has moved since you read it, decided from the host's own `updatedAt` and remembered across restarts. The open chat is never marked unread.
 - **Search inside the open chat** — the magnifier in the chat's top bar filters what the phone already holds, including the command inside a collapsed tool card and the text of a delivered file; it never asks the host, so it cannot show a result you could not have scrolled to.
+- **Answer a message by quoting it** — a long press offers Quote beside Copy and Share; the composer receives the message as a marked block, cut at a readable length, so the reply names what it answers.
 - **Send while the link is down** — a message refused by a dead link moves to a small outbox with the reason shown, and the next poll that succeeds sends it. The phone mints a `clientMessageId` for it, so a retry after a lost answer is the *same* message on the PC rather than a duplicate. The banner's **Retry** asks the link again immediately instead of waiting for the backoff.
 - **Theme and language**: system / light / dark with two complete palettes, and system / Italian / English.
 

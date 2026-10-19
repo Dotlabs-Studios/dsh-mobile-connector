@@ -96,6 +96,7 @@ import dev.dsh.mobile.data.attachmentName
 import dev.dsh.mobile.data.buildTranscript
 import dev.dsh.mobile.data.parseQuestionAnswers
 import dev.dsh.mobile.data.parseQuestions
+import dev.dsh.mobile.data.quotedMessage
 import dev.dsh.mobile.data.searchTranscript
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
@@ -702,7 +703,12 @@ private fun MessageItem(
                     FileChip(attachmentName(block.name), block.bytes?.let { humanBytes(it) })
                 }
             }
-            MessageActions(text = plain, expanded = actionsOpen, onDismiss = { actionsOpen = false })
+            MessageActions(
+                text = plain,
+                expanded = actionsOpen,
+                onDismiss = { actionsOpen = false },
+                onQuote = { viewModel.draft = quotedMessage(it) },
+            )
         }
         return
     }
@@ -735,7 +741,12 @@ private fun MessageItem(
                     .padding(horizontal = 10.dp, vertical = 3.dp),
             )
         }
-        MessageActions(text = plain, expanded = actionsOpen, onDismiss = { actionsOpen = false })
+        MessageActions(
+            text = plain,
+            expanded = actionsOpen,
+            onDismiss = { actionsOpen = false },
+            onQuote = { viewModel.draft = quotedMessage(it) },
+        )
     }
 }
 
@@ -744,17 +755,26 @@ private fun MessageItem(
  *
  * Copy puts the text on the clipboard; share hands it to any app that takes text,
  * which is how a transcript leaves the phone without the app owning an export
- * format.
+ * format; quote puts it back in the composer, marked, so the answer names what it
+ * answers.
  *
  * @param text the message's text, already trimmed.
  * @param expanded whether the menu is open.
  * @param onDismiss invoked when the menu closes for any reason.
+ * @param onQuote invoked with the text to carry into the composer.
  */
 @Composable
-private fun MessageActions(text: String, expanded: Boolean, onDismiss: () -> Unit) {
+private fun MessageActions(text: String, expanded: Boolean, onDismiss: () -> Unit, onQuote: (String) -> Unit) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.chat_quote)) },
+            onClick = {
+                onDismiss()
+                onQuote(text)
+            },
+        )
         DropdownMenuItem(
             text = { Text(stringResource(R.string.component_copy)) },
             onClick = {

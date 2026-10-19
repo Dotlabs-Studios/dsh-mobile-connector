@@ -53,6 +53,7 @@
         <item quantity="other">%1$d messaggi in coda</item>
     </plurals>
     <string name="chat_queue_behind_turn">Accoda dietro il turno</string>
+    <string name="chat_quote">Cita</string>
     <string name="chat_reasoning">Ragionamento</string>
     <string name="chat_remove">Rimuovi</string>
     <string name="chat_search_close">Chiudi la ricerca</string>
