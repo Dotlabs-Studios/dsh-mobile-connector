@@ -8,6 +8,23 @@ Legend: **done** — implemented and covered by a suite that runs in CI; **parti
 implemented, with a named gap; **pending** — not written; **blocked** — nothing this
 project can do until the harness grows the call.
 
+## Last verified
+
+2026-10-19, on `main`, with every gate run in one pass:
+
+| Gate | Result |
+|---|---|
+| `node test/plugin-check.mjs` | 484 checks |
+| `node test/status-map-check.mjs` | 33/33 |
+| `node test/ui-stub-check.mjs` | 13 checks |
+| `gradlew testDebugUnitTest` | 367 tests |
+| `gradlew lintDebug` | 0 errors |
+| `python tools/l10n-build.py --check` | 369 keys, both files in sync |
+| `python tools/docrefs.py --check` | no line coordinates |
+| `gradlew assembleDebug` / `assembleRelease` | 19.01 MB / 11.98 MB |
+| `assembleRelease -PenableR8=true` | 1.72 MB, serializers present in the dex |
+
+
 ## Security
 
 | Item | State | Where | Proof |
