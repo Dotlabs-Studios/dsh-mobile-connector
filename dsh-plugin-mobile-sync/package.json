@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-mobile-sync",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Dedicated LAN/Tailscale HTTP API that mirrors DSH sessions, chat, and photos to a phone client.",
   "type": "module",

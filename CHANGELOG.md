@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased
+
+### Plugin — `dsh-plugin-mobile-sync`
+
+**Security**
+
+- **Pairing no longer accepts a device name as a credential.** With the code spent, `POST /mobile/pair` used to hand
+  out the token of any device whose label the caller guessed — the label is printed in `/mobile/status`, so on a shared
+  network it was a password made of a phone model. The two ways in are now a single-use code, or the token the caller
+  already holds (rotation, same device id).
+- A wiped phone comes back through `GET|POST /mobile/pairing-code`, which mints a code and answers **loopback only**;
+  a device that still holds a token can rotate it without a code.
+- Pairing attempts are rate limited per address (ten a minute) and refusals are logged.
+- `GET /mobile/devices` and `DELETE /mobile/devices/{id}`: revoke a phone from the app instead of editing a file. A
+  device may revoke itself (that is unpairing); the reply says `self: true`.
+- `/mobile/file` refuses anything inside `$DSH_HOME` — where the device table and the provider credentials live — and
+  any `.credentials*` file, with `403 file/forbidden`. `protectedPaths` in the plugin row adds more fences.
+- `/mobile/pair` has its own 4 KiB body cap instead of the 48 MiB the upload routes need.
+
+**Robustness**
+
+- The state file is written atomically and serialised (flushed temp file, then rename), so a crash mid-write or two
+  simultaneous pairings cannot erase the device table. A file that no longer parses is kept aside as
+  `mobile-sync.json.corrupt-<ts>` and replaced with one that holds a freshly minted code, so log and disk agree.
+- SSE readers are dropped past 1 MiB of unflushed bytes instead of buffering forever; a stalled phone can no longer
+  grow the harness's heap without bound.
+- `host` defaults to `127.0.0.1` (no phone admitted until it is set), `port` is validated at boot, header and request
+  timeouts are set, and the disposer resolves pending approvals and questions.
+- Directory browsing and file reads no longer create request-counter keys from unauthenticated paths.
+- `GET /mobile/health` reports `apiVersion`, `pluginVersion` and the plugin's own counters; `/mobile/status` carries the
+  same versions and the device ids. Tokens never appear in either.
+- The state file is version 3: devices gain a stable `id` (derived from the token at creation, kept across rotations),
+  and a table written by an older build is read and upgraded in place.
+
 ## v0.2.0 — 2026-10-15
 
 First public release: the host plugin and the Android client, together.

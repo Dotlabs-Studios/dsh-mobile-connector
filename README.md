@@ -66,19 +66,23 @@ mobile-sync: reachable at http://100.101.102.103:4380  (Tailscale — works from
 mobile-sync: pairing code 3f9a1c7e5b2d4a80 — enter it in the app to pair a device
 ```
 
-State lives in one file, `$DSH_HOME/storages/mobile-sync.json` (`%USERPROFILE%\.dsh\storages\mobile-sync.json` on Windows), written with mode `0600`. It holds the current pairing code and the device table — for each device its name, its bearer token and when it was first and last seen. There is no user database and no account: a device *is* a token.
+State lives in one file, `$DSH_HOME/storages/mobile-sync.json` (`%USERPROFILE%\.dsh\storages\mobile-sync.json` on Windows), written with mode `0600`, atomically (a flushed sibling file renamed over the old one, so a crash mid-write leaves the previous table intact). It holds the current pairing code and the device table — for each device a stable id, its name, its bearer token and when it was first and last seen. There is no user database and no account: a device *is* a token.
+
+The listener defaults to `127.0.0.1:4380`, which admits no phone. Admitting one is the deliberate `host: "0.0.0.0"` in the plugin row, and a nonsensical `port` is refused at boot instead of bound somewhere surprising.
 
 ### Pairing, in full
 
-The pairing code is the only unauthenticated thing the listener accepts (`POST /mobile/pair`), so its rules are worth knowing exactly:
+Pairing is the one thing the listener accepts without a token (`POST /mobile/pair`), so its rules are worth knowing exactly:
 
-- **It never expires.** A short window would only punish a slow restart; a code that lives until it is spent is one you can read out of the log at your leisure.
+- **The code never expires.** A short window would only punish a slow restart; a code that lives until it is spent is one you can read out of the log at your leisure.
 - **It is single use.** The moment one device pairs, the code is retired and cannot be used by anything else on the network.
-- **Every boot with a spent code mints a new one**, persists it, and announces it. So pairing a second phone is a restart, not a file edit.
-- **An already-paired device can re-pair by name.** A phone that wiped the app but kept its name gets a fresh token back, which is the way home after a reinstall without touching the PC.
-- **Revoking is emptying `devices`** in the state file and restarting. Worth doing before lending the phone, not after.
+- **A spent code pairs nobody — not even a name already in the table.** The device label is a label; the old "re-pair by name" shortcut made it a password, and it is gone.
+- **A new code can be minted without a restart**: open `http://127.0.0.1:4380/mobile/pairing-code` on the PC (or `curl -X POST` it). The route answers loopback only, because a code minted in reply to a network request is a code the network has already seen. A reinstalled app comes back this way.
+- **A phone that still holds its token can rotate it** — `POST /mobile/pair` with its bearer header returns a fresh token for the same device id, no code involved. That is the answer to "I think this token leaked".
+- **Revoking is `DELETE /mobile/devices/{id}`** — from the app's settings, or with `curl` on the PC; emptying `devices` in the state file still works and still requires a restart. Worth doing before lending the phone, not after.
+- **Pairing attempts are rate limited** per address (ten a minute), and a refused attempt is logged.
 
-Every other route requires `Authorization: Bearer <token>`. Tokens are compared in constant time, a token that no longer appears in the device table is `401 unauthorized`, and pairing failure is `403` with `pairing-refused` or `pairing-closed`.
+Every other route requires `Authorization: Bearer <token>`. Tokens are compared in constant time, a token that no longer appears in the device table is `401 unauthorized`, and pairing failure is `403` with `pairing-refused`, `pairing-closed` or `rate-limited`.
 
 ### What the routes bridge
 
@@ -86,7 +90,10 @@ The route surface is small and deliberate. Full reference, field by field: **[do
 
 | Method | Route | Purpose |
 |---|---|---|
-| `POST` | `/mobile/pair` | Claim the pairing code, receive the device token. |
+| `POST` | `/mobile/pair` | Claim the pairing code, or rotate the token the caller holds. |
+| `GET` / `POST` | `/mobile/pairing-code` | Mint a fresh pairing code, from the PC only. |
+| `GET` | `/mobile/health` | Wire version, plugin version, counters — the cheap liveness probe. |
+| `GET` / `DELETE` | `/mobile/devices[/{id}]` | The paired devices / revoke one (or the caller itself). |
 | `GET` | `/mobile/status` | Listener, reachable URLs, paired devices, session counts. |
 | `GET` / `POST` | `/mobile/sessions` | List sessions (grouped by project when the host has a workspace registry) / create one in a chosen folder. |
 | `GET` / `POST` / `DELETE` | `/mobile/workspaces` | Read, adopt and remove the PC's project list. |
@@ -139,11 +146,12 @@ Then make sure the profile mounts it. In `%USERPROFILE%\.dsh\profiles\desktop\co
     - id: mobile-sync
       name: "dsh-plugin-mobile-sync"
       config:
-        host: "0.0.0.0"   # 127.0.0.1 to expose nothing on the network
+        host: "0.0.0.0"   # the default is 127.0.0.1, which admits no phone
         port: 4380
         # debug: true            # richer error codes in failure replies
         # approvalWaitMs: 120000 # how long an approval waits for the phone
         # questionWaitMs: 120000 # how long a question waits for the phone
+        # protectedPaths: []     # more paths /mobile/file must refuse (the harness home is always refused)
 ```
 
 > **The `insert:` wrapper is not decoration.** A row written as `- id: mobile-sync` is read as a *patch* against a row that does not exist: the boot logs `patch: entry "mobile-sync" not found` and the plugin never mounts. `dsh --profile desktop --dump-config` shows what the profile actually composed.
@@ -184,16 +192,16 @@ The app permits cleartext HTTP on purpose: the Wi-Fi link and the WireGuard tunn
 
 ## Pair the phone
 
-1. Start the harness and copy the **pairing code** from the log.
+1. Start the harness and copy the **pairing code** from the log — or, at any time, open `http://127.0.0.1:4380/mobile/pairing-code` on the PC and read the code it answers with.
 2. Open the app and fill in three fields:
    - **PC address** — the LAN IP (`192.168.x.x`) or the Tailscale IP (`100.x.x.x`). The port is appended for you if you omit it.
-   - **Pairing code** — from the log.
-   - **Phone name** — how this device is listed on the PC, and what it uses to re-pair later.
+   - **Pairing code** — from the log or from the route above.
+   - **Phone name** — how this device is listed on the PC. It is a label only: two phones may use the same one, and neither can recover the other's token with it.
 3. **Pair.** The app stores the token it receives; the code is never needed again.
 
-A token that stops being accepted (the device was removed, or `devices` was emptied) shows as a banner with a **Reconnect** tap that returns to pairing with the address still filled in.
+A token that stops being accepted (the device was revoked, or `devices` was emptied) shows as a banner with a **Reconnect** tap that returns to pairing with the address still filled in. Pairing again needs a code: mint one on the PC with `/mobile/pairing-code`.
 
-To revoke every phone at once: empty `devices` in `%USERPROFILE%\.dsh\storages\mobile-sync.json`, restart the harness, pair again with the new code.
+To revoke a phone: **Settings → Devices** in the app, `DELETE /mobile/devices/{id}`, or empty `devices` in `%USERPROFILE%\.dsh\storages\mobile-sync.json` and restart.
 
 ---
 
@@ -347,14 +355,18 @@ The honest summary: **a paired phone can act on your PC through the harness.** I
 
 What the design does defend:
 
-- **Nothing is unauthenticated but pairing**, and pairing needs a single-use code that exists only in the log and in a `0600` state file.
+- **Nothing is unauthenticated but pairing**, and pairing needs a single-use code that exists only in the log and in a `0600` state file. A code can be minted on demand from the PC (`/mobile/pairing-code`, loopback only) and pairing attempts are rate limited per address.
+- **A label is not a credential.** The device name is a display string. It cannot recover a token, and two phones may share one.
+- **Tokens can be rotated and revoked.** A device that still holds its token can trade it for a new one; `DELETE /mobile/devices/{id}` cuts one off (or the caller itself) without editing a file.
+- **The harness's own files are not for the phone.** `/mobile/file` refuses anything inside `$DSH_HOME` — the device table and the provider credentials live there — and any `.credentials*` file, whatever path the client typed.
 - **The failure mode is closed.** `allowed-once` is the only outcome that grants anything; anything else, including a malformed answer, denies.
 - **No invented promises.** There is no "always allow", because the harness has no persistent permission store to honour it.
 - **Nothing survives a restart.** Pending approvals and questions are in-memory, so a card on the phone cannot answer a turn that is already over.
 - **Permission changes are logged.** A preset change lands in the session log as a `permission/preset` entry, verifiable on the PC afterwards — that log is the reason it is not a silent in-memory setting.
 - **The preview fetcher is the harness's own**, so the phone inherits the host's policy instead of adding a second one to keep in sync.
+- **The state file is written atomically and serialised**, so a crash or two simultaneous pairings cannot erase the device table.
 
-If that perimeter is not enough for you, the lever is the network, not the app: keep `host: "127.0.0.1"` and reach it over Tailscale, or leave the listener on a network you trust. Empty `devices` and restart to cut every phone off at once.
+If that perimeter is not enough for you, the lever is the network, not the app: keep the default `host: "127.0.0.1"` and reach it over Tailscale, or leave the listener on a network you trust. `DELETE /mobile/devices/{id}` — or emptying `devices` and restarting — cuts every phone off at once.
 
 ---
 
@@ -363,16 +375,18 @@ If that perimeter is not enough for you, the lever is the network, not the app: 
 | Symptom | Cause and fix |
 |---|---|
 | No `mobile-sync: listening` line in the log | The profile was not reloaded, or the `insert:` row is wrong. Close and reopen the harness; check with `dsh --profile <name> --dump-config`. |
-| The app cannot reach the PC | Same network? Windows Firewall may be blocking the port on private networks. From the PC, `/mobile/status` answering `401` proves the listener is up. |
-| `Pairing code is not valid` | Re-read it from the log or from `mobile-sync.json`. |
-| `This code has already been used` | The code is single use: restart the harness and use the new one. A device that already paired can re-pair by keeping its name. |
-| The app says the token is no longer valid | The device was removed from `devices`, or the file was emptied. Tap **Reconnect** in the banner: pairing reopens with the address already filled in. |
+| The app cannot reach the PC | Is `host` set? The default is `127.0.0.1`, which admits no phone. Same network? Windows Firewall may be blocking the port on private networks. From the PC, `/mobile/status` answering `401` proves the listener is up. |
+| `Pairing code is not valid` | Re-read it from the log, or mint a fresh one on the PC: `http://127.0.0.1:4380/mobile/pairing-code`. |
+| `Pairing is closed` | The code was spent. Mint a new one on the PC with `/mobile/pairing-code`, then pair again — a known name no longer recovers a token by itself. |
+| `Too many pairing attempts` | Ten a minute per address. Wait a minute; if it was not you, look at the warnings in the harness log. |
+| The app says the token is no longer valid | The device was revoked, or `devices` was emptied. Tap **Reconnect** in the banner and pair with a fresh code from the PC. |
 | `The PC is writing in this chat` | The harness has one writer per session. Close that chat on the desktop, or write in another session. |
 | A permission request never appears on the phone | The listener only registers what the plugin hooks at boot: restart the harness after updating the plugin. |
 | `This request is no longer pending` | The turn ended, or the harness restarted. Approvals are in-memory by design. |
 | Tapping *Allow* says it was already decided elsewhere | The desktop or another phone answered first. The first answer wins, and that is the intended behaviour. |
 | An image says it could not be loaded | Tap to retry. Images of a session whose agent is no longer loaded are still served from the session log, up to the last 400 messages. |
-| Port 4380 is already in use | Change `port` in the plugin row and restart. |
+| `This file belongs to the harness itself` | `/mobile/file` refuses `$DSH_HOME` (device table, credentials). Add a `protectedPaths` entry if you want more fences, and open the file on the PC instead. |
+| Port 4380 is already in use | Change `port` in the plugin row and restart. A nonsensical `port` is refused at boot, with the value in the message. |
 | A link preview says the address is blocked | `preview/blocked` is a non-public destination or a cross-origin redirect, which the harness's fetcher refuses on purpose. |
 
 ---

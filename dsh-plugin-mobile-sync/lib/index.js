@@ -31,12 +31,56 @@ import { createServer } from 'node:http'
 import { spawn } from 'node:child_process'
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { createReadStream } from 'node:fs'
-import { mkdir, open, opendir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, open, opendir, readFile, rename, stat } from 'node:fs/promises'
 import { homedir, networkInterfaces } from 'node:os'
 import { basename as baseNameOf, dirname, isAbsolute, join, parse as parsePath, relative, resolve, sep, win32 } from 'node:path'
 
+/**
+ * The wire contract this build speaks.
+ *
+ * Bumped when a route changes shape in a way an older client would decode
+ * wrongly, so the phone can say "this host is too old" instead of failing at the
+ * first request it did not expect. The app reports its own version at pairing;
+ * both travel in `/mobile/status` and `/mobile/health`.
+ */
+const API_VERSION = 2
+/** The plugin's own version, mirrored from package.json for the status payload. */
+const PLUGIN_VERSION = '0.3.0'
+
 /** Hard cap on one JSON request body; base64 photos dominate this. */
 const MAX_BODY_BYTES = 48 * 1024 * 1024
+/**
+ * Cap on the pairing request body.
+ *
+ * Pairing carries a code and a device label, nothing else, so it gets its own
+ * ceiling instead of the 48 MiB the upload routes need: the one unauthenticated
+ * route on the listener should not be a place to push megabytes into.
+ */
+const MAX_PAIR_BODY_BYTES = 4 * 1024
+/** Pair attempts one address may make inside {@link PAIR_ATTEMPT_WINDOW_MS}. */
+const PAIR_ATTEMPT_LIMIT = 10
+/** The window a pair attempt is counted in, in milliseconds. */
+const PAIR_ATTEMPT_WINDOW_MS = 60_000
+/** Addresses tracked by the pairing limiter; the oldest is dropped past this. */
+const PAIR_ATTEMPT_TRACK_LIMIT = 256
+/**
+ * Bytes a stalled SSE reader may fall behind before it is dropped.
+ *
+ * `res.write` returns `false` when Node has buffered past the high-water mark,
+ * and a phone that stops reading (suspend, tunnel flap, dead radio) never
+ * drains it. Left alone, every event the harness appends accumulates in the
+ * plugin's heap; dropping the connection after one megabyte is the difference
+ * between one client reconnecting and the whole harness running out of memory.
+ */
+const SSE_MAX_BUFFER_BYTES = 1024 * 1024
+/** Route keys the request counter will create; anything else folds into one bucket. */
+const TRACKED_ROUTES = new Set([
+  'status', 'health', 'sessions', 'workspaces', 'dirs', 'events', 'images', 'files', 'models',
+  'approvals', 'questions', 'permissions', 'file', 'delivery', 'preview', 'devices', 'pulse',
+  'pair', 'pairing-code',
+])
+/** Distinct request-counter keys kept before the counter is reset. */
+const MAX_TRACKED_ROUTE_KEYS = 64
 /** Cap on a single decoded base64 photo. */
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024
 /**
@@ -170,7 +214,61 @@ function dshHome() {
     const at = profileDir.lastIndexOf(marker)
     if (at > 0) return profileDir.slice(0, at - 1)
   }
-  return join(process.env.USERPROFILE ?? process.cwd(), '.dsh')
+  // The home directory, not the working directory: a harness launched from
+  // another folder (a shortcut, a different project, a service manager) must
+  // still find the state file that holds every paired phone, and `cwd` is where
+  // that assumption silently breaks.
+  return join(homedir(), '.dsh')
+}
+
+/**
+ * Derive the stable public id of one device from its token.
+ *
+ * The token itself is the credential and never appears in a list; the id is what
+ * the phone shows and what a revoke names, and deriving it from the token means
+ * no extra field to keep in sync and no id that can drift from the credential it
+ * points at.
+ *
+ * @param token - the device's bearer token.
+ * @returns a short hex id, stable for the lifetime of the token.
+ */
+function deviceIdFor(token) {
+  return createHash('sha256').update(String(token)).digest('hex').slice(0, 12)
+}
+
+/**
+ * Whether one socket address is the same machine.
+ *
+ * Pairing codes are minted from the PC by opening a loopback URL, so the route
+ * that mints them must refuse anything arriving from the network. `::ffff:`
+ * prefixed IPv4 addresses and `::1` both mean "this machine" on a dual-stack
+ * socket, and `localhost` is never a remote interface.
+ *
+ * @param address - `req.socket.remoteAddress`.
+ * @returns whether the peer is loopback.
+ */
+function isLoopback(address) {
+  if (typeof address !== 'string') return false
+  const value = address.toLowerCase()
+  return value === '::1' || value === '127.0.0.1' || value.startsWith('127.') || value.startsWith('::ffff:127.')
+}
+
+/**
+ * Whether one resolved path sits inside a directory.
+ *
+ * Comparison uses `path.relative`, which respects the platform's own separator
+ * and drive rules, and a `..` result is the one answer that means "outside":
+ * string prefixes would call `C:\dsh-evil` a child of `C:\dsh`.
+ *
+ * @param target - absolute path to test.
+ * @param root - absolute directory that must contain it.
+ * @returns whether target is root or below it.
+ */
+function pathIsInside(target, root) {
+  if (typeof target !== 'string' || typeof root !== 'string' || target.length === 0 || root.length === 0) return false
+  const steps = relative(root, target)
+  if (steps.length === 0) return true
+  return !steps.startsWith('..') && !isAbsolute(steps)
 }
 
 /**
@@ -1493,12 +1591,13 @@ function wireEvent(event) {
  * arrives without a body.
  *
  * @param req - the incoming request.
- * @param options - `required` refuses an absent/empty body; `empty` is the fallback value.
+ * @param options - `required` refuses an absent/empty body; `empty` is the fallback value;
+ *   `limit` overrides the body ceiling for routes that carry almost nothing.
  * @returns the parsed JSON value, the fallback for an empty body, or undefined.
  * @throws HttpError on oversize, malformed, or non-object bodies.
  */
 async function readJsonBody(req, options = {}) {
-  const { required = false, empty } = options
+  const { required = false, empty, limit = MAX_BODY_BYTES } = options
   const declared = req.headers['content-length']
   if (declared === '0' || (declared === undefined && req.headers['transfer-encoding'] === undefined)) {
     if (required) throw new HttpError(400, 'invalid-request', 'a JSON object body is required')
@@ -1508,7 +1607,7 @@ async function readJsonBody(req, options = {}) {
   let total = 0
   for await (const chunk of req) {
     total += chunk.length
-    if (total > MAX_BODY_BYTES) throw new HttpError(413, 'body-too-large', `request body exceeds ${MAX_BODY_BYTES} bytes`)
+    if (total > limit) throw new HttpError(413, 'body-too-large', `request body exceeds ${limit} bytes`)
     chunks.push(chunk)
   }
   if (total === 0) {
@@ -1571,6 +1670,25 @@ class MobileSync {
     this.requestCounts = new Map()
     this.startedAt = Date.now()
     this.configPath = join(dshHome(), 'storages', 'mobile-sync.json')
+    /**
+     * Serialises state writes.
+     *
+     * Two pairing requests arriving together used to snapshot the device table at
+     * different moments and write it twice, so the second write silently dropped
+     * the device the first one had just added. Every write goes through this
+     * chain, and each one is a whole-file replace, so the last write always holds
+     * both devices.
+     */
+    this.saveChain = Promise.resolve()
+    /**
+     * Pair attempts, by peer address, for the one unauthenticated route.
+     *
+     * A code is 128 bits of entropy, so guessing it is not a real attack; a
+     * listener that answers an unlimited number of guesses at wire speed is
+     * still a bad neighbour on a shared network. The window is small, the map is
+     * bounded, and a successful pair clears the count.
+     */
+    this.pairAttempts = new Map()
     /**
      * Approvals waiting for a phone answer, by the id handed to the client.
      *
@@ -2056,7 +2174,18 @@ class MobileSync {
       // why. Stripping it costs one line and removes that whole failure mode.
       const parsed = JSON.parse(raw.charCodeAt(0) === 0xFEFF ? raw.slice(1) : raw)
       if (Array.isArray(parsed?.devices)) {
-        this.devices = parsed.devices.filter((device) => typeof device?.token === 'string' && device.token.length > 0)
+        this.devices = parsed.devices
+          .filter((device) => typeof device?.token === 'string' && device.token.length > 0)
+          .map((device) => ({
+            // The id is derived rather than stored so a table written by an older
+            // build (which had no ids) and one written by this build address the
+            // same device: revoking by id works across the migration.
+            id: typeof device.id === 'string' && device.id.length > 0 ? device.id : deviceIdFor(device.token),
+            name: typeof device.name === 'string' && device.name.length > 0 ? device.name : 'Android device',
+            token: device.token,
+            createdAt: Number.isFinite(device.createdAt) ? device.createdAt : Date.now(),
+            lastSeenAt: Number.isFinite(device.lastSeenAt) ? device.lastSeenAt : Date.now(),
+          }))
       }
       // The code is authoritative here: an empty string means it was already
       // spent, anything else is usable. There is deliberately no expiry — a
@@ -2065,22 +2194,71 @@ class MobileSync {
       // expiry, which JSON.stringify turns into null and silently discards.)
       if (typeof parsed?.setupCode === 'string') this.setupCode = parsed.setupCode
     } catch (error) {
-      this.ctx.logger.warn(`mobile-sync: ${this.configPath} is not valid JSON, starting empty: ${String(error)}`)
+      // A file that no longer parses is kept, never overwritten: whoever edited
+      // it by hand can still see what was there. The boot then mints a code and
+      // *persists* it, so the value in the log and the value on disk agree — the
+      // old path logged a random code that was never written, which reads exactly
+      // like a pairing bug to the person typing it in.
+      this.ctx.logger.warn(`mobile-sync: ${this.configPath} is not valid JSON; keeping it aside and starting empty: ${String(error)}`)
+      await this.setCorruptAside()
+      this.setupCode = mintToken(16)
+      await this.saveState()
+    }
+  }
+
+  /**
+   * Move an unreadable state file out of the way instead of deleting it.
+   * @returns after the move was attempted.
+   */
+  async setCorruptAside() {
+    const target = `${this.configPath}.corrupt-${Date.now()}`
+    try {
+      await rename(this.configPath, target)
+      this.ctx.logger.warn(`mobile-sync: the unreadable state file is kept as ${target}`)
+    } catch (error) {
+      this.ctx.logger.warn(`mobile-sync: cannot keep the unreadable state file aside: ${String(error)}`)
     }
   }
 
   /**
    * Persist pairing state, creating the storage directory when absent.
+   *
+   * Writes are serialised and atomic: the new table is written to a sibling
+   * file, flushed, and renamed over the old one. A crash mid-write therefore
+   * leaves the previous table intact instead of truncating the file that holds
+   * every paired phone.
+   *
    * @returns after the file is written.
    */
-  async saveState() {
+  saveState() {
+    const run = this.saveChain.then(() => this.writeState())
+    this.saveChain = run.catch(() => {})
+    return run
+  }
+
+  /**
+   * Write the state file once, via a flushed temporary file.
+   * @returns after the rename has replaced the previous file.
+   */
+  async writeState() {
     const payload = {
-      version: 2,
+      version: 3,
       setupCode: this.setupCode,
       devices: this.devices,
     }
+    const text = `${JSON.stringify(payload, null, 2)}\n`
     await mkdir(dirname(this.configPath), { recursive: true })
-    await writeFile(this.configPath, `${JSON.stringify(payload, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 })
+    const temporary = `${this.configPath}.${process.pid}.tmp`
+    const handle = await open(temporary, 'w', 0o600)
+    try {
+      await handle.writeFile(text, 'utf8')
+      // Flush before the rename: a rename that lands ahead of the data is how a
+      // power loss turns a valid table into an empty file.
+      await handle.sync()
+    } finally {
+      await handle.close()
+    }
+    await rename(temporary, this.configPath)
   }
 
   /**
@@ -2088,22 +2266,40 @@ class MobileSync {
    * @returns after the socket is listening.
    */
   async listen() {
+    const port = Number(this.config?.port ?? 4380)
+    if (!Number.isInteger(port) || port < 0 || port > 65_535) {
+      throw new Error(`mobile-sync: port must be an integer between 0 and 65535 (got ${String(this.config?.port)})`)
+    }
+    // No host means loopback: a plugin mounted without a host must not be the
+    // reason the harness is reachable from the network. Admitting phones is a
+    // deliberate `host: "0.0.0.0"`, which the boot log then explains.
+    const host = typeof this.config?.host === 'string' && this.config.host.length > 0 ? this.config.host : '127.0.0.1'
     const server = createServer((req, res) => {
       this.handle(req, res).catch((error) => {
+        // A malformed percent-escape is the client's mistake, not the harness's
+        // failure: `decodeURIComponent` throws `URIError`, and answering 500 with
+        // a warning line made a typo look like an internal fault.
+        const failure = error instanceof URIError
+          ? { status: 400, code: 'invalid-request', message: 'the request path is not valid percent-encoding' }
+          : toHttpFailure(error, this.config.debug === true)
         this.ctx.logger.warn(`mobile-sync: request failed: ${String(error)}`)
         if (res.headersSent) {
           res.destroy()
           return
         }
-        sendFailure(res, toHttpFailure(error, this.config.debug === true))
+        sendFailure(res, failure)
       })
     })
+    // A slow header, not a slow phone: uploads legitimately take minutes on a
+    // mobile link, headers never do.
+    server.headersTimeout = 30_000
+    server.requestTimeout = 600_000
     server.on('clientError', (_error, socket) => {
       socket.destroy()
     })
     await new Promise((resolve, reject) => {
       server.once('error', reject)
-      server.listen(this.config.port, this.config.host, () => {
+      server.listen(port, host, () => {
         server.off('error', reject)
         server.on('error', (error) => this.ctx.logger.error(`mobile-sync: listener error: ${String(error)}`))
         resolve()
@@ -2114,11 +2310,19 @@ class MobileSync {
     this.ctx.effect(() => () => {
       for (const stream of this.streams) stream.end()
       this.streams.clear()
+      // A turn parked on a phone answer must not outlive the listener: resolving
+      // with null is the same "nobody answered" the timeout produces, and it is
+      // what lets the harness close instead of waiting for a card that can never
+      // be drawn again.
+      for (const record of this.pendingApprovals.values()) record.resolve(null)
+      this.pendingApprovals.clear()
+      for (const record of this.pendingQuestions.values()) record.resolve(null)
+      this.pendingQuestions.clear()
       server.closeAllConnections()
       server.close()
     }, 'mobile-sync: listener')
-    this.ctx.logger.info(`mobile-sync: listening on http://${this.config.host}:${this.port}`)
-    if (this.config.host === '127.0.0.1') {
+    this.ctx.logger.info(`mobile-sync: listening on http://${host}:${this.port}`)
+    if (isLoopback(host) || host === 'localhost') {
       this.ctx.logger.info('mobile-sync: bound to loopback, so a phone cannot reach it; set host to 0.0.0.0 to admit one')
     } else {
       const urls = reachableUrls(this.port)
@@ -2165,12 +2369,51 @@ class MobileSync {
     if (this.streams.size === 0) return
     const frame = `data: ${JSON.stringify(payload)}\n\n`
     for (const res of this.streams) {
+      // A phone that stopped reading (suspended, tunnel down, radio gone) leaves
+      // its frames in this process's memory. `write` answering false is Node
+      // saying the socket buffer is full: past the cap the connection is dropped,
+      // and the client reconnects instead of the harness growing until it dies.
+      if (res.writableLength > SSE_MAX_BUFFER_BYTES) {
+        this.dropStream(res)
+        continue
+      }
       try {
         res.write(frame)
       } catch {
-        this.streams.delete(res)
+        this.dropStream(res)
       }
     }
+  }
+
+  /**
+   * Forget one SSE connection and close its socket.
+   * @param res - the response whose stream is being abandoned.
+   */
+  dropStream(res) {
+    this.streams.delete(res)
+    try {
+      res.destroy()
+    } catch {
+      // The socket is already gone; there is nothing left to close.
+    }
+  }
+
+  /**
+   * Resolve the device a request's bearer token belongs to, if any.
+   *
+   * Split from [authenticate] because two callers need the answer without the
+   * refusal: pairing *rotation* (a device that still holds its token may trade it
+   * for a new one without a code) and the device list's "which one is me".
+   *
+   * @param req - the incoming request.
+   * @returns the matching device record, or null when the request carries no valid token.
+   */
+  deviceFor(req) {
+    const header = req.headers.authorization
+    if (typeof header !== 'string' || !header.startsWith('Bearer ')) return null
+    const token = header.slice('Bearer '.length).trim()
+    if (token.length === 0) return null
+    return this.devices.find((candidate) => sameSecret(candidate.token, token)) ?? null
   }
 
   /**
@@ -2180,14 +2423,18 @@ class MobileSync {
    * @throws HttpError 401 when no valid bearer token is present.
    */
   authenticate(req) {
-    const header = req.headers.authorization
-    if (typeof header !== 'string' || !header.startsWith('Bearer ')) {
-      throw new HttpError(401, 'unauthorized', 'a paired device token is required')
+    const device = this.deviceFor(req)
+    if (device === null) {
+      const header = req.headers.authorization
+      if (typeof header !== 'string' || !header.startsWith('Bearer ')) {
+        throw new HttpError(401, 'unauthorized', 'a paired device token is required')
+      }
+      throw new HttpError(401, 'unauthorized', 'this device token is not paired with the harness')
     }
-    const token = header.slice('Bearer '.length).trim()
-    if (token.length === 0) throw new HttpError(401, 'unauthorized', 'a paired device token is required')
-    const device = this.devices.find((candidate) => sameSecret(candidate.token, token))
-    if (device === undefined) throw new HttpError(401, 'unauthorized', 'this device token is not paired with the harness')
+    // Kept in memory rather than written: a request is not a reason to rewrite
+    // the state file, but "when did this phone last talk to me" is the one thing
+    // a person asks a device list, and the next save carries it to disk.
+    device.lastSeenAt = Date.now()
     return device
   }
 
@@ -2233,9 +2480,27 @@ class MobileSync {
       await this.routePair(req, res)
       return
     }
+    // Minting a code is unauthenticated by necessity — a wiped phone has no
+    // token — so the route itself refuses anything that is not this machine.
+    if (segments.length === 2 && segments[1] === 'pairing-code' && (method === 'GET' || method === 'POST')) {
+      await this.routePairingCode(req, res)
+      return
+    }
 
     this.authenticate(req)
 
+    if (segments.length === 2 && segments[1] === 'health' && method === 'GET') {
+      await this.routeHealth(req, res)
+      return
+    }
+    if (segments.length === 2 && segments[1] === 'devices' && method === 'GET') {
+      await this.routeDevices(req, res)
+      return
+    }
+    if (segments.length === 3 && segments[1] === 'devices' && method === 'DELETE') {
+      await this.routeRevokeDevice(req, res, decodeURIComponent(segments[2]))
+      return
+    }
     if (segments.length === 2 && segments[1] === 'status' && method === 'GET') {
       await this.routeStatus(req, res)
       return
@@ -2356,39 +2621,130 @@ class MobileSync {
    * @param res - the response to write.
    */
   async routePair(req, res) {
-    const body = await readJsonBody(req, { required: true })
-    const code = typeof body.code === 'string' ? body.code.trim() : ''
-    if (code.length === 0) throw new HttpError(400, 'invalid-request', 'a pairing code is required')
-    const name = typeof body.device === 'string' && body.device.trim().length > 0 ? body.device.trim().slice(0, 80) : 'Android device'
-    const existing = this.devices.find((device) => device.name === name)
-
-    if (this.setupCode.length === 0) {
-      if (existing === undefined) {
-        throw new HttpError(403, 'pairing-closed', 'the code has been used; restart the harness to pair a new device')
-      }
-      // A known device returning after a token loss. The code was already
-      // spent to prove intent, so issue a fresh one for it alone.
-      this.setupCode = mintToken(16)
-      await this.saveState()
-      this.ctx.logger.info(`mobile-sync: new pairing code ${this.setupCode} minted for returning device "${name}"`)
-    } else if (!sameSecret(code, this.setupCode)) {
-      throw new HttpError(403, 'pairing-refused', 'the pairing code is not valid')
+    if (this.pairAttemptsExhausted(req.socket.remoteAddress)) {
+      this.ctx.logger.warn(`mobile-sync: pairing refused for ${req.socket.remoteAddress}: too many attempts`)
+      throw new HttpError(429, 'rate-limited', 'too many pairing attempts; wait a minute and try again')
     }
-
-    if (existing !== undefined) {
+    const body = await readJsonBody(req, { required: true, limit: MAX_PAIR_BODY_BYTES })
+    const code = typeof body.code === 'string' ? body.code.trim() : ''
+    const askedName = typeof body.device === 'string' && body.device.trim().length > 0
+      ? body.device.trim().slice(0, 80)
+      : 'Android device'
+    const existing = this.deviceFor(req)
+    if (existing !== null) {
+      // Rotation. The caller proved it holds this device's token, so the token is
+      // the only credential this branch consults — and the row survives, which is
+      // what makes "rotate a credential I think leaked" possible without the PC.
+      // The public id is deliberately *not* rederived: it names the device across
+      // rotations, so a revoke still points at the phone that rotated.
+      existing.token = mintToken(32)
       existing.lastSeenAt = Date.now()
-      this.setupCode = ''
+      if (typeof body.device === 'string' && body.device.trim().length > 0) existing.name = askedName
       await this.saveState()
-      sendJson(res, 200, { token: existing.token, device: existing.name, reused: true })
+      this.pairAttempts.delete(req.socket.remoteAddress)
+      this.ctx.logger.info(`mobile-sync: token rotated for device "${existing.name}" (${existing.id})`)
+      sendJson(res, 200, { token: existing.token, device: existing.name, id: existing.id, reused: true, rotated: true })
       return
     }
-
+    if (this.setupCode.length === 0) {
+      this.ctx.logger.warn(`mobile-sync: pairing refused for "${askedName}": no code is open`)
+      throw new HttpError(403, 'pairing-closed', 'pairing is closed; mint a new code on the PC at /mobile/pairing-code')
+    }
+    if (code.length === 0) throw new HttpError(400, 'invalid-request', 'a pairing code is required')
+    if (!sameSecret(code, this.setupCode)) {
+      this.ctx.logger.warn(`mobile-sync: pairing refused for "${askedName}": wrong code`)
+      throw new HttpError(403, 'pairing-refused', 'the pairing code is not valid')
+    }
+    // A name is a label, not an identity: two phones of the same model are two
+    // devices, and neither can take the other's token by claiming its name.
     const token = mintToken(32)
-    this.devices.push({ name, token, createdAt: Date.now(), lastSeenAt: Date.now() })
+    const device = { id: deviceIdFor(token), name: askedName, token, createdAt: Date.now(), lastSeenAt: Date.now() }
+    this.devices.push(device)
     this.setupCode = ''
     await this.saveState()
-    this.ctx.logger.info(`mobile-sync: paired device "${name}"`)
-    sendJson(res, 200, { token, device: name, reused: false })
+    this.pairAttempts.delete(req.socket.remoteAddress)
+    this.ctx.logger.info(`mobile-sync: paired device "${device.name}" (${device.id})`)
+    sendJson(res, 200, { token: device.token, device: device.name, id: device.id, reused: false })
+  }
+
+  /**
+   * Mint a fresh pairing code, from the PC only.
+   *
+   * A wiped phone has no token, so the only honest way back is a code that
+   * somebody standing at the keyboard asked for. Restarting the harness also
+   * mints one; this route is the same thing without the restart, and it answers
+   * loopback only — a code minted by a request from the network would be a code
+   * the network had already seen.
+   *
+   * @param req - the incoming request.
+   * @param res - the response to write.
+   */
+  async routePairingCode(req, res) {
+    if (!isLoopback(req.socket.remoteAddress)) {
+      throw new HttpError(403, 'loopback-only', 'a pairing code can only be minted from this PC')
+    }
+    this.setupCode = mintToken(16)
+    await this.saveState()
+    this.ctx.logger.info(`mobile-sync: pairing code ${this.setupCode} minted on request — enter it in the app to pair a device`)
+    sendJson(res, 200, { code: this.setupCode, pairingOpen: true })
+  }
+
+  /**
+   * List every paired device, without its token.
+   * @param req - the incoming request.
+   * @param res - the response to write.
+   */
+  async routeDevices(req, res) {
+    const current = this.deviceFor(req)
+    sendJson(res, 200, {
+      items: this.devices.map((device) => ({
+        id: device.id,
+        name: device.name,
+        createdAt: device.createdAt,
+        lastSeenAt: device.lastSeenAt,
+        current: current !== null && device.id === current.id,
+      })),
+    })
+  }
+
+  /**
+   * Revoke one paired device by id.
+   *
+   * A device may revoke itself — that is what "unpair" means from the phone — and
+   * the reply says so, because the caller's own token stops working on the very
+   * next request.
+   *
+   * @param req - the incoming request.
+   * @param res - the response to write.
+   * @param id - the device id from the path.
+   */
+  async routeRevokeDevice(req, res, id) {
+    const index = this.devices.findIndex((device) => device.id === id)
+    if (index < 0) throw new HttpError(404, 'device/not-found', `no paired device has id "${id}"`)
+    const [removed] = this.devices.splice(index, 1)
+    await this.saveState()
+    const stillPaired = this.deviceFor(req) !== null
+    this.ctx.logger.info(`mobile-sync: revoked device "${removed.name}" (${removed.id})`)
+    sendJson(res, 200, { revoked: true, id: removed.id, self: !stillPaired })
+  }
+
+  /**
+   * Count one pair attempt for a peer and report whether it is over the limit.
+   *
+   * @param address - `req.socket.remoteAddress`.
+   * @returns whether the next attempt must be refused.
+   */
+  pairAttemptsExhausted(address) {
+    const key = typeof address === 'string' && address.length > 0 ? address : 'unknown'
+    const now = Date.now()
+    const entry = this.pairAttempts.get(key)
+    if (entry === undefined || now >= entry.resetAt) {
+      if (this.pairAttempts.size >= PAIR_ATTEMPT_TRACK_LIMIT) this.pairAttempts.clear()
+      this.pairAttempts.set(key, { count: 1, resetAt: now + PAIR_ATTEMPT_WINDOW_MS })
+      return false
+    }
+    entry.count += 1
+    return entry.count > PAIR_ATTEMPT_LIMIT
   }
 
   /**
@@ -2402,17 +2758,47 @@ class MobileSync {
    * @param segments - the path split on slashes.
    */
   countRequest(method, segments) {
-    let route = '/'
-    if (segments[0] === 'mobile') {
-      route = segments[1] === undefined ? '/mobile' : `/mobile/${segments[1]}`
-      if (segments[1] === 'sessions') {
-        if (segments[3] === 'messages') route = `/mobile/sessions/*/messages`
-        else if (segments[3] === 'images') route = `/mobile/sessions/*/images`
+    // Only a known route may create a key. Keying on whatever the caller typed
+    // turned the counter into an unbounded map fed by unauthenticated requests:
+    // `GET /mobile/<random>` added a key per request, forever.
+    const prefix = segments[0] === 'mobile' && TRACKED_ROUTES.has(segments[1]) ? segments[1] : null
+    let route = '/mobile/*'
+    if (prefix !== null) {
+      route = `/mobile/${prefix}`
+      if (prefix === 'sessions') {
+        if (segments[3] === 'messages') route = '/mobile/sessions/*/messages'
+        else if (segments[3] === 'images') route = '/mobile/sessions/*/images'
         else route = '/mobile/sessions'
       }
     }
     const key = `${method} ${route}`
+    if (!this.requestCounts.has(key) && this.requestCounts.size >= MAX_TRACKED_ROUTE_KEYS) this.requestCounts.clear()
     this.requestCounts.set(key, (this.requestCounts.get(key) ?? 0) + 1)
+  }
+
+  /**
+   * Answer the cheap liveness question: is this listener the build I think it is?
+   *
+   * `/mobile/status` answers what the host holds and costs a session list to do
+   * it; this one only reads the plugin's own counters, which is what a phone
+   * checking "is the PC still there, and is it new enough" needs on a bad link.
+   *
+   * @param req - the incoming request.
+   * @param res - the response to write.
+   */
+  async routeHealth(req, res) {
+    sendJson(res, 200, {
+      ok: true,
+      apiVersion: API_VERSION,
+      pluginVersion: PLUGIN_VERSION,
+      appVersion: typeof req.headers['x-dsh-mobile-app'] === 'string' ? req.headers['x-dsh-mobile-app'].slice(0, 40) : null,
+      port: this.port,
+      uptimeSeconds: Math.round((Date.now() - this.startedAt) / 1000),
+      devices: this.devices.length,
+      streams: this.streams.size,
+      pendingApprovals: this.pendingApprovals.size,
+      pendingQuestions: this.pendingQuestions.size,
+    })
   }
 
   /**
@@ -2422,6 +2808,7 @@ class MobileSync {
    */
   async routeStatus(req, res) {
     const controller = this.ctx.get('sessionController')
+    const current = this.deviceFor(req)
     let sessionCount = 0
     let liveCount = 0
     if (controller !== undefined) {
@@ -2431,10 +2818,18 @@ class MobileSync {
     }
     sendJson(res, 200, {
       ok: true,
+      apiVersion: API_VERSION,
+      pluginVersion: PLUGIN_VERSION,
       host: this.config.host,
       port: this.port,
       urls: reachableUrls(this.port),
-      devices: this.devices.map((device) => ({ name: device.name, createdAt: device.createdAt, lastSeenAt: device.lastSeenAt })),
+      devices: this.devices.map((device) => ({
+        id: device.id,
+        name: device.name,
+        createdAt: device.createdAt,
+        lastSeenAt: device.lastSeenAt,
+        current: current !== null && device.id === current.id,
+      })),
       pairingOpen: this.setupCode.length > 0,
       sessionCount,
       liveCount,
@@ -3522,8 +3917,33 @@ class MobileSync {
     const reference = url.searchParams.get('ref')
     const cwd = await this.sessionCwd(url.searchParams.get('session'))
     const target = resolveFileReference(reference, cwd)
+    this.assertPhoneReadable(target)
     const line = fragmentLine(splitFileFragment(reference).fragment)
     sendJson(res, 200, { ...(await readTextFile(target)), line })
+  }
+
+  /**
+   * Refuse a path a phone may not read, however it spelled it.
+   *
+   * The route exists so a link an *agent printed* opens on the phone, and the
+   * reference is taken as given — which also means it can name any file the
+   * harness account can read. Two of those are worth more than the whole
+   * conversation: the state file holds every paired device's token, and the
+   * harness home holds provider credentials. A phone is trusted to drive its own
+   * agent; it is not trusted to mint its siblings' credentials.
+   *
+   * @param target - the absolute path the route resolved.
+   * @throws HttpError 403 `file/forbidden` for the harness's own installation.
+   */
+  assertPhoneReadable(target) {
+    const home = dshHome()
+    const extra = Array.isArray(this.config?.protectedPaths) ? this.config.protectedPaths : []
+    const forbidden = [home, this.configPath, ...extra.filter((entry) => typeof entry === 'string' && entry.length > 0)]
+    const name = baseNameOf(target).toLowerCase()
+    const looksLikeCredentials = name.startsWith('.credentials') || name === 'credentials.yaml' || name === 'credentials.yml'
+    if (looksLikeCredentials || forbidden.some((root) => pathIsInside(resolve(target), resolve(root)))) {
+      throw new HttpError(403, 'file/forbidden', 'that file belongs to the harness itself and is not readable from a phone')
+    }
   }
 
   /**
@@ -3767,17 +4187,27 @@ class MobileSync {
     this.streams.add(res)
     const heartbeat = setInterval(() => {
       try {
+        if (res.writableLength > SSE_MAX_BUFFER_BYTES) {
+          clearInterval(heartbeat)
+          this.dropStream(res)
+          return
+        }
         res.write(`: keep-alive\n\n`)
       } catch {
         clearInterval(heartbeat)
+        this.dropStream(res)
       }
     }, SSE_HEARTBEAT_MS)
+    // A heartbeat must not be the reason the harness process stays alive after
+    // the plugin is unloaded.
+    heartbeat.unref?.()
     const cleanup = () => {
       clearInterval(heartbeat)
       this.streams.delete(res)
     }
     req.once('close', cleanup)
     res.once('close', cleanup)
+    res.once('error', cleanup)
     req.once('error', cleanup)
   }
 }

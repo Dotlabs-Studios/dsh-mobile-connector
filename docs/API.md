@@ -1,27 +1,33 @@
 ## HTTP API reference
 
 `dsh-plugin-mobile-sync` owns its own `node:http` listener, on the `host` and `port` from its plugin configuration and
-nowhere near the Web GUI's loopback server; this package supplies no default for either (`lib/index.js:2090`).
+nowhere near the Web GUI's loopback server. Both have safe defaults — `127.0.0.1:4380`, which admits no phone until
+`host` is set — and a nonsensical `port` is refused at boot rather than bound (`lib/index.js:2269`, `2276`).
 Everything it serves is under the base path `/mobile`, and a request whose first segment is not `mobile` is answered
-`404 not-found` before authentication runs (`lib/index.js:2228`). Auth is a paired-device token — `Authorization:
-Bearer <token>` — required on every route except `POST /mobile/pair` (`lib/index.js:2237`) and compared in constant
-time (`lib/index.js:2182`). Bodies are JSON objects, read whole and capped at 48 MiB, except `POST /mobile/files`,
-whose body *is* the file's bytes; answers are `application/json; charset=utf-8` with `cache-control: no-store`, apart
-from the two byte streams noted below. Every failure, the router's own included, uses one envelope
-(`lib/index.js:1551`):
+`404 not-found` before authentication runs (`lib/index.js:2469`). Auth is a paired-device token — `Authorization:
+Bearer <token>` — required on every route except `POST /mobile/pair` and `GET|POST /mobile/pairing-code` (the second
+one answers loopback only), and compared in constant time (`lib/index.js:2425`). Bodies are JSON objects, read whole
+and capped at 48 MiB — except `POST /mobile/files`, whose body *is* the file's bytes, and `POST /mobile/pair`, which
+carries a code and a label and is capped at 4 KiB; answers are `application/json; charset=utf-8` with `cache-control:
+no-store`, apart from the two byte streams noted below. Every failure, the router's own included, uses one envelope
+(`lib/index.js:1650`):
 
 ```json
 { "error": { "code": "unauthorized", "message": "a paired device token is required" } }
 ```
 
-Binding `127.0.0.1` is allowed and logged as a warning, because a phone then cannot reach the listener at all
-(`lib/index.js:2121`).
+Binding `127.0.0.1` is the default and is logged as a warning, because a phone then cannot reach the listener at all
+(`lib/index.js:2326`).
 
 ### Routes
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `POST` | `/mobile/pair` | Claim the pairing code and mint or recover a device token. |
+| `POST` | `/mobile/pair` | Claim the pairing code and mint a device token, or rotate the token the caller already holds. |
+| `GET`/`POST` | `/mobile/pairing-code` | Mint a fresh pairing code. **Loopback only.** |
+| `GET` | `/mobile/health` | Wire version, plugin version, and the plugin's own counters. |
+| `GET` | `/mobile/devices` | The paired devices, with the stable id each is addressed by. |
+| `DELETE` | `/mobile/devices/{id}` | Revoke one device, or the caller itself. |
 | `GET` | `/mobile/status` | Listener, pairing and session counts for the settings screen. |
 | `GET` | `/mobile/sessions` | List the host's chats, newest first, with a status dot. |
 | `POST` | `/mobile/sessions` | Create one chat, optionally inside a project. |
@@ -54,34 +60,71 @@ An unrecognised path *under* `/mobile` still authenticates first, so a bad token
 
 ### POST /mobile/pair
 
-Unauthenticated, and the only route that is. Body `{ code, device }`: `code` is the pairing code the harness printed
-at boot; `device` is a label, trimmed, cut to 80 characters, defaulting to `Android device`. Answer `200 { token,
-device, reused }`, `reused` being `true` when the name already had a token (`lib/index.js:2358`).
+Body `{ code, device }`: `code` is the pairing code the PC printed at boot or minted on demand; `device` is a label,
+trimmed, cut to 80 characters, defaulting to `Android device`. Answer `200 { token, device, id, reused }`, plus
+`rotated: true` on a rotation (`lib/index.js:2623`).
 
-- The code is **single use**: retired the instant a device joins, so nothing else can ride it. There is deliberately
-  **no expiry** — a short window only punishes a slow restart, while single use is what closes the door
-  (`lib/index.js:2061`, `2135`). A spent code with an unknown name is `403 pairing-closed`; a wrong code is `403
-  pairing-refused`.
-- **Re-pairing is by device name**, and the name is the identity key: a request naming a device already in the table
-  returns *that* device's token with `reused: true` and spends the live code — and when the code is already spent,
-  the request succeeds anyway, with `code` required but never compared (`lib/index.js:2378`, `2360`, `2365`). Two
-  phones sending one `device` string therefore share one token.
-- State lives in `$DSH_HOME/storages/mobile-sync.json`, mode `0600`, holding `{ version: 2, setupCode, devices: [{
-  name, token, createdAt, lastSeenAt }] }` (`lib/index.js:1573`, `2077`). An empty `setupCode` means "spent" and is
-  what the loader trusts; a byte-order mark is stripped first, because this is exactly the file a person edits by
-  hand. A boot with a spent code mints a fresh one, saves it, and only then logs it, so log and disk always agree
-  (`lib/index.js:2050`, `2138`).
-- `lastSeenAt` is written **only while pairing** — no authenticated request updates it — so it is the last pairing
-  time, not last activity (`lib/index.js:2379`, `2182`).
+Two ways in, and **a name is never one of them**:
+
+- **A pairing code.** Single use: retired the instant a device joins, so nothing else can ride it. There is
+  deliberately **no expiry** — a short window only punishes a slow restart, while single use is what closes the door
+  (`lib/index.js:2233`, `2191`). A spent code is `403 pairing-closed` whatever the body says; a wrong code is `403
+  pairing-refused`. Success mints a *new* token for a *new* device, so two phones with the same label are two rows
+  with two tokens.
+- **The token the caller already holds.** A request carrying a valid bearer token rotates that device's token and
+  keeps its `id`, with no code involved: the token was the proof (`lib/index.js:2633`). This is the path back for a
+  credential you think leaked, and it needs nothing from the PC.
+
+A phone that has neither — a wiped app, a lost token — comes back through `GET /mobile/pairing-code` on the PC. That
+route replaced the old "re-pair by name" shortcut, which handed out an existing device's token to anyone who guessed
+the label; the name was doing the job of a password, and it is printed in `/mobile/status`.
+
+- State lives in `$DSH_HOME/storages/mobile-sync.json`, mode `0600`, holding `{ version: 3, setupCode, devices: [{ id,
+  name, token, createdAt, lastSeenAt }] }` (`lib/index.js:2243`). An empty `setupCode` means "spent" and is what the
+  loader trusts; a byte-order mark is stripped first, because this is exactly the file a person edits by hand. A file
+  that does not parse is moved aside as `mobile-sync.json.corrupt-<ts>` and replaced with a file that holds a freshly
+  minted code, so log and disk agree (`lib/index.js:2158`).
+- Writes are **serialised and atomic**: the table goes to a flushed sibling file and is renamed over the old one
+  (`lib/index.js:2233`). A crash mid-write leaves the previous table intact, and two pair requests arriving together
+  cannot drop each other's device.
+- `id` is 12 hex characters derived from the token at creation and kept across rotations; it is what `/mobile/devices`
+  shows and what a revoke names. `lastSeenAt` is updated in memory by every authenticated request and travels to disk
+  with the next save, so it means last activity rather than last pairing (`lib/index.js:2437`).
+
+### GET|POST /mobile/pairing-code
+
+Mints a new pairing code and returns `200 { code, pairingOpen }`, logging it as the boot path does
+(`lib/index.js:2682`). Refuses anything that is not loopback with `403 loopback-only`: a code minted in reply to a
+request from the network is a code the network has already seen. Open `http://127.0.0.1:4380/mobile/pairing-code` on
+the PC — or `curl -X POST` it — when a reinstalled app needs to pair without restarting the harness.
+
+### GET /mobile/health
+
+`200 { ok, apiVersion, pluginVersion, appVersion, port, uptimeSeconds, devices, streams, pendingApprovals,
+pendingQuestions }` (`lib/index.js:2789`). Nothing here touches the session controller, so it answers on a bad link
+and is the cheap "is the PC there, and is it new enough" probe. `appVersion` echoes an `x-dsh-mobile-app` request
+header when the client sends one.
+
+### GET /mobile/devices
+
+`200 { items: [{ id, name, createdAt, lastSeenAt, current }] }`, `current` marking the caller; tokens never appear
+(`lib/index.js:2697`).
+
+### DELETE /mobile/devices/{id}
+
+`200 { revoked: true, id, self }`. A device may revoke *itself* — that is what unpairing from the phone means — and
+`self` says so, because the caller's token stops working on the very next request. An unknown id is `404
+device/not-found` (`lib/index.js:2721`).
 
 ### GET /mobile/status
 
-No parameters. `200 { ok, host, port, urls, devices, pairingOpen, sessionCount, liveCount, requests, uptimeSeconds,
-version }` (`lib/index.js:2423`). `urls` is one `{ url, address, tailscale }` per reachable non-loopback IPv4 address,
-with the Tailscale range (a CGNAT address in `100.64.0.0/10`) flagged because that is the one that works off the home
-network (`lib/index.js:254`). `devices` is `{ name, createdAt, lastSeenAt }` only — never tokens. `sessionCount` and
-`liveCount` are `0` when the host mounts no session controller, which is a fact rather than a failure
-(`lib/index.js:2427`).
+No parameters. `200 { ok, apiVersion, pluginVersion, host, port, urls, devices, pairingOpen, sessionCount, liveCount,
+requests, uptimeSeconds, version }` (`lib/index.js:2809`). `urls` is one `{ url, address, tailscale }` per reachable
+non-loopback IPv4 address, with the Tailscale range (a CGNAT address in `100.64.0.0/10`) flagged because that is the
+one that works off the home network (`lib/index.js:352`). `devices` is `{ id, name, createdAt, lastSeenAt, current }`
+only — never tokens. `sessionCount` and `liveCount` are `0` when the host mounts no session controller, which is a
+fact rather than a failure (`lib/index.js:2812`). `requests` is bounded: unknown paths fold into `/mobile/*` instead
+of creating a key each (`lib/index.js:2760`).
 
 ### GET /mobile/sessions
 
@@ -317,7 +360,7 @@ own words when its admission check refuses the switch.
 
 `ref` (string, required) is an absolute path, a `file:` URL, or a path relative to the chat named by `session`
 (string, optional, the chat on screen). Answer `200 { path, name, bytes, text, truncated, line }`
-(`lib/index.js:3521`). `line` is the 1-based line a `#L35` fragment pointed at, or `null` when the link named none —
+(`lib/index.js:3916`). `line` is the 1-based line a `#L35` fragment pointed at, or `null` when the link named none —
 the reader still reads the whole file, but saying which line the link meant is the difference between honouring the
 link and quietly dropping half of it (`lib/index.js:3513`).
 
@@ -325,11 +368,18 @@ The reference travels exactly as the agent wrote it, because a relative one mean
 printed it*; the host process's own working directory is the one base that must never be used, since it is the
 process's accident and would read a different file with the same name without saying so. A fragment is stripped before
 resolution, since it names a place *inside* a file, and a `../` step out of the chat's folder is allowed rather than
-fenced: the same device can already browse the whole disk through `/mobile/dirs` (`lib/index.js:612`, `571`, `650`).
+fenced: the same device can already browse the whole disk through `/mobile/dirs` (`lib/index.js:733`).
+
+The same freedom is why this route is fenced at all: a reference can name the harness's own installation, and two of
+those files are worth more than the conversation. Anything inside `$DSH_HOME` — which is where the device table lives,
+tokens included, next to the provider credentials — and any `.credentials*` file is refused with `403 file/forbidden`
+before the file is opened, and `protectedPaths` in the plugin configuration adds more (`lib/index.js:3938`). The fence
+is on *this* route only: `/mobile/delivery` addresses a declaration out of the harness's log, so its paths are the
+agent's choice rather than the client's.
 
 Bounds and refusals: at most 512 KiB is read and at most 120 000 characters are served, with `truncated` reporting
 which cut applied; a byte of NUL anywhere in what was read is what makes a file binary here, answering `415
-file/binary` (`lib/index.js:750`). `400 file/invalid` covers an empty, over-long or drive-relative reference; `409
+file/binary` (`lib/index.js:848`). `400 file/invalid` covers an empty, over-long or drive-relative reference; `409
 file/no-session` a relative reference with no folder to resolve against; `404 file/not-found` and `400
 file/not-a-file` the filesystem itself.
 
@@ -400,6 +450,11 @@ frame of their own: sending a prompt produces `session-event` frames only becaus
 is no `id:` line and no replay, so a frame emitted while the phone is disconnected is gone — which is why the approval
 and question lists are pollable reads rather than stream-only (`lib/index.js:3220`, `3261`).
 
+A reader that stops reading is dropped rather than buffered: once a connection's unflushed bytes pass 1 MiB the plugin
+destroys it, and the client's own `retry: 3000` brings it back (`lib/index.js:2368`). A phone that suspends, loses a
+tunnel or flies into a dead cell is one reconnection; without the cap it was one megabyte per stalled client in the
+harness's heap.
+
 ### Error codes
 
 Every failure uses the envelope above. Codes raised by this plugin:
@@ -409,11 +464,15 @@ Every failure uses the envelope above. Codes raised by this plugin:
 | `not-found` | 404 | Unknown route, or an image no session log references. |
 | `unauthorized` | 401 | No bearer token, an empty one, or a token that is not paired. |
 | `pairing-refused` | 403 | The pairing code is not valid. |
-| `pairing-closed` | 403 | The code was already spent and this device name is unknown; restart the harness. |
+| `pairing-closed` | 403 | The code was already spent. Mint a new one on the PC (`/mobile/pairing-code`) or rotate the token the phone still holds. |
+| `loopback-only` | 403 | A pairing code was asked for from the network; the route answers this machine only. |
+| `rate-limited` | 429 | More pairing attempts from one address than the window allows. |
+| `device/not-found` | 404 | No paired device has that id. |
+| `file/forbidden` | 403 | The path is the harness's own installation (`$DSH_HOME`, its credentials) and is not readable from a phone. |
 | `invalid-request` | 400 | A required parameter or body field is missing or malformed. |
 | `invalid-json` | 400 | The body is not valid JSON, or is not a JSON *object*. |
 | `invalid-base64` | 400 | Image data is not valid base64. |
-| `body-too-large` | 413 | The JSON body exceeds 48 MiB. |
+| `body-too-large` | 413 | The JSON body exceeds 48 MiB, or a pairing body exceeds 4 KiB. |
 | `image-too-large` | 413 | One decoded photo exceeds 12 MiB. |
 | `file-too-large` | 413 | An upload exceeds 32 MiB. |
 | `file/too-large` | 413 | A delivered file exceeds the 64 MiB download bound. |

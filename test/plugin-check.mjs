@@ -8,7 +8,7 @@
  */
 
 import { strict as assert } from 'node:assert'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import * as path from 'node:path'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -546,6 +546,8 @@ await instance[Symbol.for('cordis.init')]()
 const base = `http://127.0.0.1:${instance.port}`
 const setupCode = instance.setupCode
 let token
+/** The id this device is known by, asserted stable across a token rotation. */
+let deviceId
 
 /**
  * Call one route and decode its JSON body.
@@ -602,17 +604,44 @@ function ok(condition, label) {
   ok(paired.status === 200, `pairing succeeds (got ${paired.status})`)
   ok(typeof paired.body.token === 'string' && paired.body.token.length > 20, 'pairing returns a device token')
   ok(paired.body.reused === false, 'a first pairing is not a reuse')
+  ok(typeof paired.body.id === 'string' && paired.body.id.length === 12, `pairing answers a stable device id (got ${paired.body.id})`)
   token = paired.body.token
+  deviceId = paired.body.id
 
   // A different device must not be able to ride the spent code...
   const intruder = await call('/mobile/pair', { method: 'POST', body: JSON.stringify({ code: setupCode, device: 'Intruso' }) })
   ok(intruder.status === 403, `a second device cannot ride the spent code (got ${intruder.status})`)
 
-  // ...while the device that paired can recover its own token by name, which is
-  // the path back after an app reinstall.
-  const returning = await call('/mobile/pair', { method: 'POST', body: JSON.stringify({ code: 'stale', device: 'Pixel 8' }) })
-  ok(returning.status === 200 && returning.body.reused === true, `a known device recovers its token (got ${returning.status})`)
-  ok(returning.body.token === token, 'recovery returns the same token')
+  // ...and neither can a name. This is the regression this suite used to encode
+  // as a feature: with the code spent, `POST /mobile/pair` handed out the token
+  // of any device whose *label* the caller guessed, so the label was a password.
+  const byName = await call('/mobile/pair', { method: 'POST', body: JSON.stringify({ code: 'stale', device: 'Pixel 8' }) })
+  ok(byName.status === 403, `a spent code cannot be replayed by device name (got ${byName.status})`)
+  ok(byName.body.error?.code === 'pairing-closed', `the refusal names the closed door (got ${byName.body.error?.code})`)
+
+  // The phone that still holds its token can trade it for a fresh one — no code,
+  // because the token *is* the proof — and the id it is known by survives.
+  const rotated = await call('/mobile/pair', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}` },
+    body: JSON.stringify({ device: 'Pixel 8' }),
+  })
+  ok(rotated.status === 200, `a paired device can rotate its token (got ${rotated.status})`)
+  ok(rotated.body.rotated === true, 'rotation says it rotated')
+  ok(rotated.body.token !== token, 'rotation issues a new token')
+  ok(rotated.body.id === deviceId, 'rotation keeps the device id')
+  const rotatedAway = await call('/mobile/sessions', { headers: { authorization: `Bearer ${token}` } })
+  ok(rotatedAway.status === 401, `the rotated-away token stops working (got ${rotatedAway.status})`)
+  token = rotated.body.token
+
+  // A token that is not in the table proves nothing, so the request falls
+  // through to the code check — which is closed and refuses it.
+  const staleRotation = await call('/mobile/pair', {
+    method: 'POST',
+    headers: { authorization: 'Bearer not-a-real-token' },
+    body: JSON.stringify({ code: '', device: 'Pixel 8' }),
+  })
+  ok(staleRotation.status === 403, `an unknown token cannot rotate a device (got ${staleRotation.status})`)
 
   const closedStatus = await authed('/mobile/status')
   ok(closedStatus.body.pairingOpen === false, 'pairing is closed once a device has joined')
@@ -1851,6 +1880,192 @@ function ok(condition, label) {
   webPages.clear()
 }
 
+// ── device ids, rotation, and revoking a phone from another phone ────────────
+{
+  // A separate host on its own state file: this block deliberately pairs more
+  // than one device and revokes them, and the suite above asserts that exactly
+  // one device exists.
+  const devicesHome = fileURLToPath(new URL('./_runtime-devices/', import.meta.url))
+  await rm(devicesHome, { recursive: true, force: true })
+  const host = new MobileSync(ctx, { host: '127.0.0.1', port: 0 })
+  host.configPath = fileURLToPath(new URL('./_runtime-devices/storages/mobile-sync.json', import.meta.url))
+  await host[Symbol.for('cordis.init')]()
+  const baseDevices = `http://127.0.0.1:${host.port}`
+
+  // A code minted from the PC is the way back for a phone that lost its token,
+  // since a name no longer recovers anything.
+  const minted = await fetch(`${baseDevices}/mobile/pairing-code`)
+  ok(minted.status === 200, `the PC can mint a pairing code (got ${minted.status})`)
+  const mintedBody = await minted.json()
+  ok(typeof mintedBody.code === 'string' && mintedBody.code.length > 10, 'the minted code is returned')
+  ok(host.setupCode === mintedBody.code, 'the minted code is the one in force')
+
+  const first = await fetch(`${baseDevices}/mobile/pair`, {
+    method: 'POST',
+    body: JSON.stringify({ code: mintedBody.code, device: 'Pixel 8' }),
+  })
+  ok(first.status === 200, `the minted code pairs a device (got ${first.status})`)
+  const firstDevice = await first.json()
+
+  // Same label, second phone: a name is a label, so this is a second device with
+  // its own id and its own token rather than the first phone's credentials.
+  const secondCode = await (await fetch(`${baseDevices}/mobile/pairing-code`)).json()
+  const second = await fetch(`${baseDevices}/mobile/pair`, {
+    method: 'POST',
+    body: JSON.stringify({ code: secondCode.code, device: 'Pixel 8' }),
+  })
+  ok(second.status === 200, `two phones may share a label (got ${second.status})`)
+  const secondDevice = await second.json()
+  ok(secondDevice.token !== firstDevice.token, 'the second phone gets its own token')
+  ok(secondDevice.id !== firstDevice.id, 'the second phone gets its own id')
+
+  const listedResponse = await fetch(`${baseDevices}/mobile/devices`, { headers: { authorization: `Bearer ${firstDevice.token}` } })
+  const listed = await listedResponse.json()
+  ok(listedResponse.status === 200, `the device list answers 200 (got ${listedResponse.status})`)
+  ok(listed.items.length === 2, `both devices are listed (got ${listed.items.length})`)
+  ok(listed.items.some((device) => device.id === firstDevice.id && device.current === true), 'the list marks the caller')
+  ok(listed.items.every((device) => device.token === undefined), 'the device list never carries tokens')
+
+  const revokedResponse = await fetch(`${baseDevices}/mobile/devices/${secondDevice.id}`, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${firstDevice.token}` },
+  })
+  ok(revokedResponse.status === 200, `revoking another device answers 200 (got ${revokedResponse.status})`)
+  const revoked = await revokedResponse.json()
+  ok(revoked.self === false, 'revoking someone else is not a self-revoke')
+  const dead = await fetch(`${baseDevices}/mobile/sessions`, { headers: { authorization: `Bearer ${secondDevice.token}` } })
+  ok(dead.status === 401, 'a revoked token stops working immediately')
+
+  const unknownDevice = await fetch(`${baseDevices}/mobile/devices/nope`, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${firstDevice.token}` },
+  })
+  ok(unknownDevice.status === 404, `revoking an unknown id answers 404 (got ${unknownDevice.status})`)
+
+  // A phone may revoke itself — that is "unpair" — and its token dies with it.
+  const selfResponse = await fetch(`${baseDevices}/mobile/devices/${firstDevice.id}`, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${firstDevice.token}` },
+  })
+  ok(selfResponse.status === 200, `a device can revoke itself (got ${selfResponse.status})`)
+  ok((await selfResponse.json()).self === true, 'the reply says the caller revoked itself')
+  const afterSelf = await fetch(`${baseDevices}/mobile/sessions`, { headers: { authorization: `Bearer ${firstDevice.token}` } })
+  ok(afterSelf.status === 401, 'a self-revoked token stops working')
+
+  // The limiter is checked last because it deliberately poisons this peer.
+  let refusedForLimit = 0
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const response = await fetch(`${baseDevices}/mobile/pair`, {
+      method: 'POST',
+      body: JSON.stringify({ code: `guess-${attempt}`, device: 'Bruteforce' }),
+    })
+    if (response.status === 429) refusedForLimit += 1
+  }
+  ok(refusedForLimit === 2, `the pairing route refuses past its window (got ${refusedForLimit})`)
+
+  // Minting is the PC's privilege: a request arriving over the network is told
+  // nothing, even though the route is otherwise unauthenticated.
+  let remoteRefusal = null
+  try {
+    await host.routePairingCode({ socket: { remoteAddress: '192.168.1.50' } }, {})
+  } catch (error) {
+    remoteRefusal = error
+  }
+  ok(remoteRefusal?.status === 403 && remoteRefusal?.code === 'loopback-only', 'a remote peer cannot mint a pairing code')
+
+  host.server.closeAllConnections()
+  await new Promise((resolve) => host.server.close(resolve))
+  await rm(devicesHome, { recursive: true, force: true })
+}
+
+// ── version handshake and a whole-file state write ───────────────────────────
+{
+  const health = await authed('/mobile/health')
+  ok(health.status === 200, `health answers 200 (got ${health.status})`)
+  ok(typeof health.body.apiVersion === 'number' && health.body.apiVersion >= 2, 'health reports the wire version')
+  ok(typeof health.body.pluginVersion === 'string' && health.body.pluginVersion.length > 0, 'health reports the plugin version')
+  ok(health.body.devices === 1, 'health counts the paired devices')
+
+  const status = await authed('/mobile/status')
+  ok(status.body.apiVersion === health.body.apiVersion, 'the status payload carries the same wire version')
+  ok(status.body.devices[0].id === deviceId, 'the status payload names the caller by id')
+
+  const stored = JSON.parse(await readFile(instance.configPath, 'utf8'))
+  ok(stored.version === 3, `the state file is written as version 3 (got ${stored.version})`)
+  ok(stored.devices.every((device) => typeof device.id === 'string' && device.id.length === 12), 'every stored device carries its id')
+  const leftovers = (await readdir(dirname(instance.configPath))).filter((name) => name.endsWith('.tmp'))
+  ok(leftovers.length === 0, `an atomic write leaves no temporary file behind (got ${leftovers.join(', ')})`)
+}
+
+// ── the harness's own files are not for the phone ───────────────────────────
+{
+  const stateRead = await authed(`/mobile/file?ref=${encodeURIComponent(instance.configPath)}`)
+  ok(stateRead.status === 403, `the device table is not readable through /mobile/file (got ${stateRead.status})`)
+  ok(stateRead.body.error?.code === 'file/forbidden', `the refusal is a policy one (got ${stateRead.body.error?.code})`)
+
+  // A note an agent could have linked is still served.
+  const notes = fileURLToPath(new URL('./_runtime-notes/', import.meta.url))
+  await mkdir(notes, { recursive: true })
+  const note = path.join(notes, 'nota.md')
+  await writeFile(note, '# nota\n\nciao\n', 'utf8')
+  const read = await authed(`/mobile/file?ref=${encodeURIComponent(note)}`)
+  ok(read.status === 200, `a normal file still opens (got ${read.status})`)
+  ok(read.body.text.includes('ciao'), 'the file body is served')
+  await rm(notes, { recursive: true, force: true })
+}
+
+// ── an unreadable state file is kept aside, not overwritten ─────────────────
+{
+  const corruptHome = fileURLToPath(new URL('./_runtime-corrupt/', import.meta.url))
+  await rm(corruptHome, { recursive: true, force: true })
+  const corruptPath = fileURLToPath(new URL('./_runtime-corrupt/storages/mobile-sync.json', import.meta.url))
+  await mkdir(dirname(corruptPath), { recursive: true })
+  await writeFile(corruptPath, '{ this is not json', 'utf8')
+
+  const recovered = new MobileSync(ctx, { host: '127.0.0.1', port: 0 })
+  recovered.configPath = corruptPath
+  await recovered[Symbol.for('cordis.init')]()
+  ok(recovered.setupCode.length > 0, 'an unreadable state file boots with a code instead of locking everyone out')
+  const persisted = JSON.parse(await readFile(corruptPath, 'utf8'))
+  ok(persisted.setupCode === recovered.setupCode, 'the recovery code is persisted, not just logged')
+  const kept = (await readdir(dirname(corruptPath))).some((name) => name.includes('.corrupt-'))
+  ok(kept, 'the unreadable file is kept aside rather than deleted')
+
+  recovered.server.closeAllConnections()
+  await new Promise((resolve) => recovered.server.close(resolve))
+  await rm(corruptHome, { recursive: true, force: true })
+}
+
+// ── a nonsensical port is a boot refusal, not a surprise bind ───────────────
+{
+  const badPath = fileURLToPath(new URL('./_runtime-badport/storages/mobile-sync.json', import.meta.url))
+  let refusedPort = null
+  try {
+    const bad = new MobileSync(ctx, { host: '127.0.0.1', port: 'not-a-port' })
+    bad.configPath = badPath
+    await bad[Symbol.for('cordis.init')]()
+  } catch (error) {
+    refusedPort = error
+  }
+  ok(refusedPort !== null, 'a non-numeric port is refused at boot')
+  ok(String(refusedPort?.message).includes('port'), 'the refusal names the port')
+  await rm(fileURLToPath(new URL('./_runtime-badport/', import.meta.url)), { recursive: true, force: true })
+}
+
+// ── a stalled SSE reader is dropped, and unknown routes are one bucket ──────
+{
+  let destroyed = 0
+  const stalled = { writableLength: 8 * 1024 * 1024, write() {}, destroy() { destroyed += 1 } }
+  instance.streams.add(stalled)
+  instance.broadcast({ event: 'probe' })
+  ok(destroyed === 1, 'a stalled SSE reader is dropped instead of buffered forever')
+  ok(!instance.streams.has(stalled), 'the dropped reader is forgotten')
+
+  for (let index = 0; index < 30; index += 1) await call(`/mobile/unknown-${index}`)
+  ok(instance.requestCounts.has('GET /mobile/*'), 'unknown routes fold into one bucket')
+  ok(instance.requestCounts.size <= 64, `unauthenticated paths cannot grow the counter (got ${instance.requestCounts.size})`)
+}
+
 // ── teardown ─────────────────────────────────────────────────────────────────
 {
   for (const dispose of effects) await dispose()
@@ -1899,16 +2114,40 @@ function ok(condition, label) {
   })
   ok(spentAgain.status === 403, `an unknown device cannot join a closed host (got ${spentAgain.status})`)
 
-  // A known device that lost its token may pair again by name, which is the
-  // recovery path for a reinstalled app.
+  // A known device that lost its token may **not** pair again by name: the name
+  // is a label printed on the PC's device list, not a credential. The way back is
+  // a code minted from the PC, or a rotation performed with the token it still
+  // holds.
   const returning = await fetch(`${base2}/mobile/pair`, {
     method: 'POST',
     body: JSON.stringify({ code: 'anything', device: 'Secondo telefono' }),
   })
-  ok(returning.status === 200, `a known device can recover its token (got ${returning.status})`)
-  const recovered = await returning.json()
-  ok(recovered.reused === true, 'recovery reports itself as a reuse')
-  ok(recovered.token === second.token, 'recovery returns the same token the device had')
+  ok(returning.status === 403, `a known name cannot recover a token (got ${returning.status})`)
+
+  const rotated = await fetch(`${base2}/mobile/pair`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${second.token}` },
+    body: JSON.stringify({ device: 'Secondo telefono' }),
+  })
+  ok(rotated.status === 200, `a device that still holds its token can rotate it (got ${rotated.status})`)
+  const rotatedBody = await rotated.json()
+  ok(rotatedBody.rotated === true, 'rotation reports itself')
+  ok(rotatedBody.token !== second.token, 'rotation issues a different token')
+  const rotatedOld = await fetch(`${base2}/mobile/sessions`, { headers: { authorization: `Bearer ${second.token}` } })
+  ok(rotatedOld.status === 401, 'the pre-rotation token stops working')
+  const rotatedNew = await fetch(`${base2}/mobile/sessions`, { headers: { authorization: `Bearer ${rotatedBody.token}` } })
+  ok(rotatedNew.status === 200, 'the rotated token works')
+
+  // The PC can mint a code without a restart, and that code is the one that
+  // pairs — which is what replaces "re-pair by name" as the recovery path.
+  const mintedAfterBoot = await fetch(`${base2}/mobile/pairing-code`)
+  ok(mintedAfterBoot.status === 200, `a code can be minted at runtime (got ${mintedAfterBoot.status})`)
+  const mintedAfterBootBody = await mintedAfterBoot.json()
+  const third = await fetch(`${base2}/mobile/pair`, {
+    method: 'POST',
+    body: JSON.stringify({ code: mintedAfterBootBody.code, device: 'Terzo telefono' }),
+  })
+  ok(third.status === 200, `the runtime-minted code pairs (got ${third.status})`)
 
   const unknownAfterClose = await fetch(`${base2}/mobile/pair`, {
     method: 'POST',
@@ -1976,6 +2215,7 @@ function ok(condition, label) {
   const baseBom = `http://127.0.0.1:${bom.port}`
 
   ok(bom.devices.length === 1, 'a file with a byte-order mark still yields its devices')
+  ok(typeof bom.devices[0].id === 'string' && bom.devices[0].id.length === 12, 'a table written before ids existed still gets one')
   ok(bom.setupCode.length > 0, 'a spent code in that file is still replaced on boot')
   const admitted = await fetch(`${baseBom}/mobile/status`, { headers: { authorization: 'Bearer tok-bom-device' } })
   ok(admitted.status === 200, `the device from that file can still authenticate (got ${admitted.status})`)
