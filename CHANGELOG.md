@@ -27,6 +27,10 @@
 - **Settings → Diagnostics answers "is the PC there, and is it new enough".** One read of `/mobile/health` shows the app
   version, the plugin version with the wire `apiVersion`, the address, the measured round-trip, the uptime and both
   pending counts, with a copy button for the report. An older host that has no such route is named as one.
+- **`docs/VERIFICATION.md` is the on-device checklist.** Watch mode, the lock prompt, diagnostics, the offline outbox and
+  address failover only exist on a phone, so each has a table: what to do, what must happen, and what a failure usually
+  means. The same page says what is deliberately absent — R8, two different PCs, QR pairing, and a stop that does not
+  need a message.
 - **The app learns the PC's other addresses and moves to them by itself.** While the link is up, `/mobile/status` reports
   every address a phone can dial; the LAN and tailnet ones are both kept, and when the current one stops answering the
   client rebuilds itself around the next candidate and polls it immediately instead of waiting out a backoff that

@@ -339,6 +339,8 @@ node test/find-free-session.mjs http://127.0.0.1:4399 <token>
 
 **Contract fixtures**: `node test/plugin-check.mjs` also writes `test/contract/*.json` from the real route answers — sessions, a history page, the pulse, devices, health, approvals, questions — with the volatile parts (ports, uptimes, timestamps, per-pairing ids) normalised to stable placeholders. `ContractFixturesTest` on the JVM decodes those files with the client's own serializers. A shape change on the host therefore fails the plugin suite until the fixture is regenerated, and a rename fails the JVM test if the client was not updated with it — the two halves can no longer drift apart silently.
 
+**On a device**: there is one part of this project no JVM or Node suite can reach — a foreground service, the platform's credential prompt, notifications, and a network that actually dies. **[docs/VERIFICATION.md](docs/VERIFICATION.md)** is the checklist for those: what to do, what must happen, and what a failure usually means.
+
 ---
 
 ## Repository layout
@@ -356,6 +358,7 @@ docs/
   API.md                    route-by-route reference
   APP.md                    how the app is put together
   L10N.md                   the localisation spec (Italian)
+  VERIFICATION.md           the on-device checklist for what tests cannot reach
   shots/                    the screenshots in this README
 test/                       plugin, e2e and UI-stub suites; contract fixtures
 tools/                      string generator, launcher icon generator
