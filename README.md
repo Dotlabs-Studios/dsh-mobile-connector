@@ -345,7 +345,7 @@ node test/find-free-session.mjs http://127.0.0.1:4399 <token>
 
 **On a device**: there is one part of this project no JVM or Node suite can reach — a foreground service, the platform's credential prompt, notifications, and a network that actually dies. **[docs/VERIFICATION.md](docs/VERIFICATION.md)** is the checklist for those: what to do, what must happen, and what a failure usually means. It is driven against `test/ui-stub.mjs`, the stand-in harness that serves the deterministic cases a screen needs, and `node test/ui-stub-check.mjs` proves the stub itself still answers them.
 
-**What is not here yet**: five things, each with the shape of its change and the test that would prove it — see **[docs/ROADMAP.md](docs/ROADMAP.md)**. The short version: two different PCs, QR/local discovery, R8 as the default, the view-model split, and an interrupt that does not need a message (blocked by the harness).
+**What is not here yet**: five things, each with the shape of its change and the test that would prove it — see **[docs/ROADMAP.md](docs/ROADMAP.md)**. The short version: two different PCs, QR/local discovery, R8 as the default, the view-model split, and an interrupt that does not need a message (blocked by the harness). **[docs/STATUS.md](docs/STATUS.md)** is the same thing item by item, with what proves each one.
 
 ---
 
@@ -366,6 +366,7 @@ docs/
   L10N.md                   the localisation spec (Italian)
   VERIFICATION.md           the on-device checklist for what tests cannot reach
   ROADMAP.md                what is left, and the shape of each remaining change
+  STATUS.md                 every item of the list, with what proves it
   shots/                    the screenshots in this README
 test/                       plugin, e2e and UI-stub suites; contract fixtures
 tools/                      string generator, launcher icon generator
