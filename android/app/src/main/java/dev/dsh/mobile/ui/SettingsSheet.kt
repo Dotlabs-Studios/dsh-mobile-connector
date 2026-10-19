@@ -14,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -341,6 +342,32 @@ fun SettingsSheet(viewModel: AppViewModel) {
                         style = HarnessType.caption,
                         color = palette.textTertiary,
                     )
+                    // The addresses the PC itself reported while the link was up.
+                    // Tapping one fills the field: the failover does this on its own
+                    // when an address dies, and this is how a reader takes it back
+                    // when they know better than the failure which one is right.
+                    val known = viewModel.alternateHosts()
+                    if (known.isNotEmpty()) {
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            text = stringResource(R.string.settings_known_addresses),
+                            style = HarnessType.caption,
+                            color = palette.textTertiary,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        known.forEach { candidate ->
+                            TextButton(
+                                onClick = { address = candidate },
+                                contentPadding = PaddingValues(0.dp),
+                            ) {
+                                Text(
+                                    text = candidate,
+                                    style = HarnessType.codeBlock.copy(fontSize = HarnessType.caption.fontSize),
+                                    color = palette.accent,
+                                )
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {

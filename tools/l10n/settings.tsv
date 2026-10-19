@@ -9,6 +9,7 @@ action_save	Salva	Save
 settings_change_address	Modifica indirizzo	Change address
 settings_address_title	Indirizzo del PC	PC address
 settings_address_note	Il token resta lo stesso: cambiare indirizzo non richiede un nuovo accoppiamento.	The token stays the same: changing the address does not need a new pairing.
+settings_known_addresses	Indirizzi conosciuti	Known addresses
 action_close	Chiudi	Close
 settings_diagnostics	Diagnosi	Diagnostics
 settings_diagnostics_note	Versione del plugin, latenza e stato del collegamento.	Plugin version, latency and connection state.

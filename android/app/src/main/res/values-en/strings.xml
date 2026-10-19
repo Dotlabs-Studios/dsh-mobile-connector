@@ -317,6 +317,7 @@
     <string name="settings_devices_note">Every phone listed here can act on the PC while its token exists.</string>
     <string name="settings_diagnostics">Diagnostics</string>
     <string name="settings_diagnostics_note">Plugin version, latency and connection state.</string>
+    <string name="settings_known_addresses">Known addresses</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_note">The choice takes effect at once and survives a restart.</string>
     <string name="settings_not_connected">No PC connected</string>

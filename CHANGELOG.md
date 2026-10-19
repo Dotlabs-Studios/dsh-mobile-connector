@@ -27,6 +27,9 @@
 - **Settings → Diagnostics answers "is the PC there, and is it new enough".** One read of `/mobile/health` shows the app
   version, the plugin version with the wire `apiVersion`, the address, the measured round-trip, the uptime and both
   pending counts, with a copy button for the report. An older host that has no such route is named as one.
+- **The address dialog lists the addresses the PC reported.** Failover uses them by itself; showing them is how a reader
+  overrules it — tapping one fills the field, which is the difference between an automatic system and one that can be
+  corrected. The list is learned from `/mobile/status` while the link is up and forgotten with the pairing.
 - **`docs/VERIFICATION.md` is the on-device checklist.** Watch mode, the lock prompt, diagnostics, the offline outbox and
   address failover only exist on a phone, so each has a table: what to do, what must happen, and what a failure usually
   means. The same page says what is deliberately absent — R8, two different PCs, QR pairing, and a stop that does not

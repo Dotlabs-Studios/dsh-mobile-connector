@@ -583,6 +583,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val pairedHost: String? get() = store.host
 
     /**
+     * The other addresses the host reported, for the address dialog.
+     *
+     * Failover uses them by itself when one dies; showing them is how a reader can
+     * choose one deliberately, which is the difference between an automatic system
+     * and one that can be overruled.
+     */
+    fun alternateHosts(): List<String> = store.alternates
+
+    /**
      * Point the app at a different address for the same harness.
      *
      * The token is not tied to an address: it names a device in the harness's own
