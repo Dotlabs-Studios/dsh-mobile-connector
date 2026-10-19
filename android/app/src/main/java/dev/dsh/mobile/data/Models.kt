@@ -78,6 +78,28 @@ data class PairedDevice(
 @Serializable
 data class DeviceListResponse(val items: List<PairedDevice> = emptyList())
 
+/**
+ * What the listener says about itself.
+ *
+ * The cheapest route the host has: no session list, no controller, just the build it
+ * is and the counters it keeps. That is what a phone checks when it wants to know
+ * whether the PC is there and whether the plugin is new enough for the feature it is
+ * about to use.
+ */
+@Serializable
+data class HealthResponse(
+    val ok: Boolean = false,
+    @SerialName("apiVersion") val apiVersion: Int = 0,
+    @SerialName("pluginVersion") val pluginVersion: String = "",
+    @SerialName("appVersion") val appVersion: String? = null,
+    val port: Int = 0,
+    @SerialName("uptimeSeconds") val uptimeSeconds: Long = 0L,
+    val devices: Int = 0,
+    val streams: Int = 0,
+    @SerialName("pendingApprovals") val pendingApprovals: Int = 0,
+    @SerialName("pendingQuestions") val pendingQuestions: Int = 0,
+)
+
 /** The answer to revoking one device; `self` when the caller revoked itself. */
 @Serializable
 data class DeviceRevoked(

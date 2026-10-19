@@ -28,11 +28,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Computer
 import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.LinkOff
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.SettingsBrightness
 import androidx.compose.material.icons.outlined.Smartphone
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -89,6 +91,7 @@ fun SettingsSheet(viewModel: AppViewModel) {
     LaunchedEffect(Unit) { viewModel.loadDevices() }
     var pendingRevoke by remember { mutableStateOf<PairedDevice?>(null) }
     var addressOpen by remember { mutableStateOf(false) }
+    var diagnosticsOpen by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = { viewModel.closeSettings() },
@@ -224,6 +227,45 @@ fun SettingsSheet(viewModel: AppViewModel) {
                 DeviceRow(device = device, onRevoke = { pendingRevoke = device })
             }
 
+            HarnessSectionLabel(stringResource(R.string.settings_diagnostics), Modifier.padding(horizontal = 16.dp))
+            HarnessSurface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .clickable { diagnosticsOpen = true },
+                background = palette.surfaceSunken,
+                border = palette.borderSubtle,
+                radius = HarnessRadius.lg,
+            ) {
+                Row(
+                    Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconBadge(
+                        icon = Icons.Outlined.Info,
+                        tint = palette.accent,
+                        background = palette.accentContainer,
+                        size = 40.dp,
+                        iconSize = 20.dp,
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.diagnostics_title),
+                            style = HarnessType.body,
+                            fontWeight = FontWeight.SemiBold,
+                            color = palette.textPrimary,
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_diagnostics_note),
+                            style = HarnessType.caption,
+                            color = palette.textTertiary,
+                        )
+                    }
+                    Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = palette.textTertiary)
+                }
+            }
+
             HarnessOutlineButton(
                 label = stringResource(R.string.action_unpair),
                 icon = Icons.Outlined.LinkOff,
@@ -276,8 +318,7 @@ fun SettingsSheet(viewModel: AppViewModel) {
 
     // Changing the address is not a new pairing: the token names this device in
     // the harness's table, and the PC is free to move.
-    if (addressOpen) {
-        var address by remember(viewModel.pairedHost) { mutableStateOf(viewModel.pairedHost.orEmpty()) }
+    if (addressOpen) {        var address by remember(viewModel.pairedHost) { mutableStateOf(viewModel.pairedHost.orEmpty()) }
         AlertDialog(
             onDismissRequest = { addressOpen = false },
             containerColor = palette.surface,
@@ -313,6 +354,10 @@ fun SettingsSheet(viewModel: AppViewModel) {
                 }
             },
         )
+    }
+
+    if (diagnosticsOpen) {
+        DiagnosticsDialog(viewModel = viewModel, onDismiss = { diagnosticsOpen = false })
     }
 }
 

@@ -13,6 +13,7 @@
 <resources>
     <string name="action_attach">Add a photo</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_close">Close</string>
     <string name="action_new_session">New chat</string>
     <string name="action_pair">Pair</string>
     <string name="action_revoke">Revoke</string>
@@ -101,6 +102,19 @@
     <string name="devices_revoke_body">The token stops working immediately: that phone has to pair again with a code from the PC.</string>
     <string name="devices_revoke_self_body">You are revoking this phone: you will go back to pairing.</string>
     <string name="devices_revoke_title">Revoke “%1$s”?</string>
+    <string name="diagnostics_address">Address</string>
+    <string name="diagnostics_app">App</string>
+    <string name="diagnostics_latency">Latency</string>
+    <string name="diagnostics_latency_value">%1$d ms</string>
+    <string name="diagnostics_old_host">This host does not expose /mobile/health: update the plugin.</string>
+    <string name="diagnostics_plugin">Plugin on the PC</string>
+    <string name="diagnostics_queue_value">%1$d approvals · %2$d questions</string>
+    <string name="diagnostics_queues">Waiting</string>
+    <string name="diagnostics_server_version">%1$s · API %2$d</string>
+    <string name="diagnostics_title">Connection state</string>
+    <string name="diagnostics_unavailable">no answer</string>
+    <string name="diagnostics_uptime">Up for</string>
+    <string name="diagnostics_uptime_value">%1$d min</string>
     <string name="empty_messages">No messages yet: write below to get started.</string>
     <string name="empty_sessions">No chats yet</string>
     <string name="empty_sessions_hint">Tap «New chat» to pick a project on the PC and start: it will show up in the desktop sidebar too.</string>
@@ -294,6 +308,8 @@
     <string name="settings_device_last_seen">Last contact %1$s</string>
     <string name="settings_device_never">Never</string>
     <string name="settings_devices_note">Every phone listed here can act on the PC while its token exists.</string>
+    <string name="settings_diagnostics">Diagnostics</string>
+    <string name="settings_diagnostics_note">Plugin version, latency and connection state.</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_note">The choice takes effect at once and survives a restart.</string>
     <string name="settings_not_connected">No PC connected</string>

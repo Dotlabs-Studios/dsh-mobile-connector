@@ -13,6 +13,7 @@
 <resources>
     <string name="action_attach">Aggiungi una foto</string>
     <string name="action_cancel">Annulla</string>
+    <string name="action_close">Chiudi</string>
     <string name="action_new_session">Nuova chat</string>
     <string name="action_pair">Accoppia</string>
     <string name="action_revoke">Revoca</string>
@@ -101,6 +102,19 @@
     <string name="devices_revoke_body">Il token smette di funzionare subito: quel telefono dovrà accoppiarsi di nuovo con un codice dal PC.</string>
     <string name="devices_revoke_self_body">Stai revocando questo telefono: tornerai alla schermata di accoppiamento.</string>
     <string name="devices_revoke_title">Revocare «%1$s»?</string>
+    <string name="diagnostics_address">Indirizzo</string>
+    <string name="diagnostics_app">App</string>
+    <string name="diagnostics_latency">Latenza</string>
+    <string name="diagnostics_latency_value">%1$d ms</string>
+    <string name="diagnostics_old_host">Questo host non espone /mobile/health: aggiorna il plugin.</string>
+    <string name="diagnostics_plugin">Plugin sul PC</string>
+    <string name="diagnostics_queue_value">%1$d approvazioni · %2$d domande</string>
+    <string name="diagnostics_queues">In attesa</string>
+    <string name="diagnostics_server_version">%1$s · API %2$d</string>
+    <string name="diagnostics_title">Stato del collegamento</string>
+    <string name="diagnostics_unavailable">nessuna risposta</string>
+    <string name="diagnostics_uptime">Attivo da</string>
+    <string name="diagnostics_uptime_value">%1$d min</string>
     <string name="empty_messages">Ancora nessun messaggio: scrivi qui sotto per iniziare.</string>
     <string name="empty_sessions">Nessuna chat ancora</string>
     <string name="empty_sessions_hint">Tocca «Nuova chat» per scegliere un progetto del PC e iniziare: comparirà anche nella sidebar del desktop.</string>
@@ -294,6 +308,8 @@
     <string name="settings_device_last_seen">Ultimo contatto %1$s</string>
     <string name="settings_device_never">Mai</string>
     <string name="settings_devices_note">Ogni telefono elencato qui può agire sul PC finché il suo token esiste.</string>
+    <string name="settings_diagnostics">Diagnosi</string>
+    <string name="settings_diagnostics_note">Versione del plugin, latenza e stato del collegamento.</string>
     <string name="settings_language">Lingua</string>
     <string name="settings_language_note">La scelta vale subito e resta anche dopo un riavvio.</string>
     <string name="settings_not_connected">Nessun PC collegato</string>

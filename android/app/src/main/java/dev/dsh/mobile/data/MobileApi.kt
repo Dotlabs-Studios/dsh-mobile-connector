@@ -175,6 +175,15 @@ class MobileApi(
     suspend fun status(): StatusResponse = call("/mobile/status")
 
     /**
+     * Ask the listener what build it is.
+     *
+     * The cheapest authenticated route: no session list, no controller, just the
+     * plugin's own counters — which is what a diagnostics screen checks and what a
+     * client uses to tell an old host from an unreachable one.
+     */
+    suspend fun health(): HealthResponse = call("/mobile/health")
+
+    /**
      * List the phones paired with this harness.
      *
      * Ids, labels and timestamps only: the host never sends a device's token, not

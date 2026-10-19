@@ -31,6 +31,7 @@ repository root, and the Kotlin sources live under `android/app/src/main/java/de
 | `ui/MarkdownView.kt`, `ui/Components.kt`, `ui/Inputs.kt`, `ui/Theme.kt`, `ui/Text.kt` | Rendering and kit: markdown drawing, image loading and lightbox, IN/OUT and code cards, palette and type scale, and `TextRef` resolution inside a composition. |
 | `ui/SettingsSheet.kt`, `ui/ModelPicker.kt`, `ui/PermissionPicker.kt` | The three sheets that change a setting. |
 | `ui/WatchSection.kt` | The watch-mode switch, the notification permission it asks for, and the sentence shown when the system refused; plus the lock-confirmation switch. |
+| `ui/DiagnosticsDialog.kt` | The connection report: both versions, the address, the measured round trip and the queues, copied as text. |
 | `ui/Confirm.kt` | The device-credential prompt behind *Ask before acting*: a tap that changes what the PC may do waits for the phone's own lock. |
 | `watch/WatchService.kt` | The foreground service behind watch mode: one SSE connection, three kinds of notification, a reconnect backoff. |
 | `ui/LinkPreview.kt`, `ui/FileSheet.kt`, `ui/DeliverySheet.kt`, `ui/DeliveryFiles.kt` | The readers and the ways out: a page, a linked file, a delivered file with open, download and share. |

@@ -9,3 +9,19 @@ action_save	Salva	Save
 settings_change_address	Modifica indirizzo	Change address
 settings_address_title	Indirizzo del PC	PC address
 settings_address_note	Il token resta lo stesso: cambiare indirizzo non richiede un nuovo accoppiamento.	The token stays the same: changing the address does not need a new pairing.
+action_close	Chiudi	Close
+settings_diagnostics	Diagnosi	Diagnostics
+settings_diagnostics_note	Versione del plugin, latenza e stato del collegamento.	Plugin version, latency and connection state.
+diagnostics_title	Stato del collegamento	Connection state
+diagnostics_app	App	App
+diagnostics_plugin	Plugin sul PC	Plugin on the PC
+diagnostics_server_version	%1$s · API %2$d	%1$s · API %2$d
+diagnostics_unavailable	nessuna risposta	no answer
+diagnostics_address	Indirizzo	Address
+diagnostics_latency	Latenza	Latency
+diagnostics_latency_value	%1$d ms	%1$d ms
+diagnostics_uptime	Attivo da	Up for
+diagnostics_uptime_value	%1$d min	%1$d min
+diagnostics_queues	In attesa	Waiting
+diagnostics_queue_value	%1$d approvazioni · %2$d domande	%1$d approvals · %2$d questions
+diagnostics_old_host	Questo host non espone /mobile/health: aggiorna il plugin.	This host does not expose /mobile/health: update the plugin.

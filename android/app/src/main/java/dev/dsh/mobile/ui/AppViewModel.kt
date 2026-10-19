@@ -22,6 +22,7 @@ import dev.dsh.mobile.data.DirEntry
 import dev.dsh.mobile.data.DirListing
 import dev.dsh.mobile.data.Entry
 import dev.dsh.mobile.data.HostFile
+import dev.dsh.mobile.data.HealthResponse
 import dev.dsh.mobile.data.LanguageMode
 import dev.dsh.mobile.data.LinkTarget
 import dev.dsh.mobile.data.MAX_STAGED_FILES
@@ -622,6 +623,42 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 devicesError = if (error.status == 404) TextRef.of(R.string.devices_load_failed) else describe(error)
             } finally {
                 devicesLoading = false
+            }
+        }
+    }
+
+    /** The host's answer to `/mobile/health`, once it was asked. */
+    var health by mutableStateOf<HealthResponse?>(null)
+        private set
+
+    /** How long the last health read took, in milliseconds. */
+    var healthLatencyMs by mutableStateOf<Long?>(null)
+        private set
+    var healthLoading by mutableStateOf(false)
+        private set
+    var healthError by mutableStateOf<TextRef?>(null)
+        private set
+
+    /**
+     * Ask the host what build it is, and how long the answer took.
+     *
+     * The round trip is measured here rather than in the client because it is the
+     * number a person reads: "is this link slow, or is the PC not there at all".
+     */
+    fun refreshHealth() {
+        val client = api ?: return
+        if (healthLoading) return
+        healthLoading = true
+        viewModelScope.launch {
+            val started = System.nanoTime()
+            try {
+                health = client.health()
+                healthLatencyMs = (System.nanoTime() - started) / 1_000_000
+                healthError = null
+            } catch (error: ApiException) {
+                healthError = if (error.status == 404) TextRef.of(R.string.diagnostics_old_host) else describe(error)
+            } finally {
+                healthLoading = false
             }
         }
     }

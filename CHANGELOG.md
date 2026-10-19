@@ -20,6 +20,9 @@
 - **Devices are manageable from the phone.** Settings lists every paired device with when it was last seen, and revokes
   one — including this one, which returns to pairing with the address kept. Unpairing no longer resets the theme and the
   language: those are this phone's choices, not the harness's.
+- **Settings → Diagnostics answers "is the PC there, and is it new enough".** One read of `/mobile/health` shows the app
+  version, the plugin version with the wire `apiVersion`, the address, the measured round-trip, the uptime and both
+  pending counts, with a copy button for the report. An older host that has no such route is named as one.
 - **The open chat is searchable.** The magnifier filters the transcript the phone already holds — message text, a
   tool's command and output, the file a delivery declares, the note beside an approval — and reports how many rows
   matched. It reads one already-built list, so a search never asks the host and never shows a row the reader could not
