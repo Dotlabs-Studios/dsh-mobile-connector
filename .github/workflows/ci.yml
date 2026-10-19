@@ -44,6 +44,11 @@ jobs:
         run: chmod +x gradlew
       - name: JVM unit tests
         run: ./gradlew testDebugUnitTest --console=plain
+      # Lint is a gate, not a report: it caught a MediaStore collection that only
+      # exists on API 29 in a minSdk-26 app, which is the kind of thing no unit
+      # test can see.
+      - name: Android lint
+        run: ./gradlew lintDebug --console=plain
       - name: Assemble the debug APK
         run: ./gradlew assembleDebug --console=plain
       - uses: actions/upload-artifact@v4

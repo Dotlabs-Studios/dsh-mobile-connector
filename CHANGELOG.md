@@ -27,6 +27,11 @@
 - **Settings → Diagnostics answers "is the PC there, and is it new enough".** One read of `/mobile/health` shows the app
   version, the plugin version with the wire `apiVersion`, the address, the measured round-trip, the uptime and both
   pending counts, with a copy button for the report. An older host that has no such route is named as one.
+- **Android lint runs in CI and passes.** It found a real one on the way in: the delivery downloader named
+  `MediaStore.Downloads`, a collection that only exists from API 29, in an app whose minimum is 26 — now annotated
+  `@RequiresApi(Q)` behind the branch that already guarded it. Two dead brand colours and an unused `ANDROID_ID` read
+  went with it, and the app now declares `dataExtractionRules` excluding every domain from cloud backup and
+  device transfer, which is the API 31+ spelling of `allowBackup="false"`.
 - **The wire types declare themselves immutable.** `Entry`, `Block`, `SessionSummary`, `Workspace` and the five
   transcript row types carry `@Immutable`, which is what stops Compose from treating every transcript row as unstable and
   recomposing the list on each poll. The lists they hold are replaced rather than mutated, which is the promise the

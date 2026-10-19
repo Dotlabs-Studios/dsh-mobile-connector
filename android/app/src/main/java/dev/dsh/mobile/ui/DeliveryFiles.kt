@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.annotation.RequiresApi
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewModelScope
 import dev.dsh.mobile.R
@@ -232,6 +233,7 @@ fun AppViewModel.shareDelivery(
  * @throws DeliveryRefused when the media store refuses the entry or its stream,
  *   carrying the resource that says so.
  */
+@RequiresApi(Build.VERSION_CODES.Q)
 private suspend fun AppViewModel.publishToDownloads(
     context: Context,
     sessionId: String,
@@ -277,6 +279,7 @@ private suspend fun AppViewModel.publishToDownloads(
  * @param uri the row.
  * @returns the recorded display name, or null when it cannot be read.
  */
+@RequiresApi(Build.VERSION_CODES.Q)
 private fun displayNameOf(context: Context, uri: Uri): String? =
     context.contentResolver.query(uri, arrayOf(MediaStore.Downloads.DISPLAY_NAME), null, null, null)
         ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }

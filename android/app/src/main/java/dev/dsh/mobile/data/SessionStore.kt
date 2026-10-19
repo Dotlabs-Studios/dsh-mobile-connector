@@ -1,7 +1,6 @@
 package dev.dsh.mobile.data
 
 import android.content.Context
-import android.provider.Settings
 
 /**
  * Persists the single pairing this app holds: the host address, the device
@@ -151,13 +150,6 @@ class SessionStore(context: Context) {
             else -> "$manufacturer $model"
         }
     }
-
-    /**
-     * An identifier that survives reinstalls of nothing in particular, used
-     * only to keep the paired device name stable across app restarts.
-     */
-    fun installationId(context: Context): String =
-        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown"
 
     private companion object {
         const val KEY_HOST = "host"

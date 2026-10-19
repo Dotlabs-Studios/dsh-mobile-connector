@@ -2,8 +2,6 @@
 <resources>
     <!-- The light app canvas, HarnessLight.background; values-night has the dark one. -->
     <color name="surface">#FFF5F6F8</color>
-    <color name="brand">#FF4D6BFE</color>
-    <color name="brand_dark">#FF1B3A6B</color>
     <!--
         The plate the harness draws behind its whale, used as the adaptive icon's
         background so the launcher can apply its own shape to it.

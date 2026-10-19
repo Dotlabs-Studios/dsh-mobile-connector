@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Nothing in this app belongs in a backup or on a new phone.
+
+  The one secret it holds is the device token, and a token copied to another device
+  is exactly the thing the pairing model exists to prevent; the rest is a cache of
+  what the PC already has. `allowBackup="false"` says the same thing for older
+  releases, and these rules are the API 31+ spelling of it: cloud backup and
+  device-to-device transfer both exclude every domain.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+    </device-transfer>
+</data-extraction-rules>

@@ -335,7 +335,7 @@ node test/find-free-session.mjs http://127.0.0.1:4399 <token>
 
 **Generated strings**: `tools/l10n-build.py` writes `res/values/strings.xml` and `res/values-en/strings.xml` from the tables in `tools/l10n/*.tsv`; `--check` fails if they are out of date. Nobody edits those XML files by hand — see [docs/L10N.md](docs/L10N.md).
 
-**On every push**: `.github/workflows/ci.yml` runs all three gates — the plugin suites, the generated-strings check, and the JVM tests plus a debug APK artefact — so the release gate is not a command somebody has to remember.
+**On every push**: `.github/workflows/ci.yml` runs all the gates — the plugin suites, the generated-strings check, the JVM tests, **Android lint** and a debug APK artefact — so the release gate is not a command somebody has to remember. Lint is treated as a gate rather than a report: it is what found a `MediaStore.Downloads` reference, API 29 only, in an app whose minimum is 26.
 
 **Contract fixtures**: `node test/plugin-check.mjs` also writes `test/contract/*.json` from the real route answers — sessions, a history page, the pulse, devices, health, approvals, questions — with the volatile parts (ports, uptimes, timestamps, per-pairing ids) normalised to stable placeholders. `ContractFixturesTest` on the JVM decodes those files with the client's own serializers. A shape change on the host therefore fails the plugin suite until the fixture is regenerated, and a rename fails the JVM test if the client was not updated with it — the two halves can no longer drift apart silently.
 
