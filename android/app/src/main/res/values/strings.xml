@@ -62,6 +62,12 @@
     <string name="component_image_retry">Tocca per riprovare</string>
     <string name="component_scroll_to_bottom">Vai in fondo alla chat</string>
     <string name="composer_hint">Scrivi un messaggio…</string>
+    <string name="confirm_approval_body">Sblocca il telefono per consentire l\'esecuzione.</string>
+    <string name="confirm_approval_title">Conferma l\'approvazione</string>
+    <string name="confirm_note">Per approvare un tool e per passare all\'accesso completo serve il blocco del telefono.</string>
+    <string name="confirm_preset_body">Sblocca il telefono per dare all\'agente accesso completo.</string>
+    <string name="confirm_preset_title">Conferma l\'accesso completo</string>
+    <string name="confirm_title">Chiedi conferma</string>
     <string name="deliverable_save">Scarica %1$s</string>
     <string name="deliverable_title_many">Artefatti</string>
     <string name="deliverable_title_one">Artefatto</string>

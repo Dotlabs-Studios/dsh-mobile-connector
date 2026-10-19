@@ -82,6 +82,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.dsh.mobile.R
 import dev.dsh.mobile.data.Block
+import dev.dsh.mobile.data.ApprovalRequest
 import dev.dsh.mobile.data.Entry
 import dev.dsh.mobile.data.OutgoingFile
 import dev.dsh.mobile.data.OutgoingImage
@@ -143,6 +144,19 @@ fun ChatScreen(viewModel: AppViewModel) {
             .toMap()
     }
     val liveApprovals = viewModel.approvalsFor(sessionId)
+    // Approving is the one tap here that can run a command on the PC. When the
+    // owner asked for it, the phone's own lock stands between the tap and the host.
+    val confirmation = rememberDeviceConfirmation()
+    val confirmApprovalTitle = stringResource(R.string.confirm_approval_title)
+    val confirmApprovalBody = stringResource(R.string.confirm_approval_body)
+    fun allowApproval(approval: ApprovalRequest) {
+        val action = { viewModel.answerApproval(approval, "allowed-once") }
+        if (viewModel.confirmActions) {
+            confirmation.confirm(confirmApprovalTitle, confirmApprovalBody, action)
+        } else {
+            action()
+        }
+    }
     // An approval whose log entry has not arrived yet — the newest page may
     // predate it — still has to be answerable, so anything the host is holding
     // but the transcript does not show gets its own block.
@@ -364,7 +378,7 @@ fun ChatScreen(viewModel: AppViewModel) {
                                             },
                                             answerable = live != null,
                                             busy = live != null && viewModel.answeringApproval == live.id,
-                                            onAllow = { live?.let { viewModel.answerApproval(it, "allowed-once") } },
+                                            onAllow = { live?.let { approval -> allowApproval(approval) } },
                                             onReject = { live?.let { viewModel.answerApproval(it, "rejected") } },
                                             preview = approvalPreview(item.callId?.let { id -> stepsByCallId[id]?.arguments }),
                                         )
@@ -414,7 +428,7 @@ fun ChatScreen(viewModel: AppViewModel) {
                                                 outcome = null,
                                                 answerable = true,
                                                 busy = viewModel.answeringApproval == approval.id,
-                                                onAllow = { viewModel.answerApproval(approval, "allowed-once") },
+                                                onAllow = { allowApproval(approval) },
                                                 onReject = { viewModel.answerApproval(approval, "rejected") },
                                             )
                                         }

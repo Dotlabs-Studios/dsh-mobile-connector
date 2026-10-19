@@ -188,7 +188,7 @@ fun SettingsSheet(viewModel: AppViewModel) {
                 }
             }
 
-            WatchSection()
+            WatchSection(viewModel)
 
             HarnessSectionLabel(stringResource(R.string.settings_section_devices), Modifier.padding(horizontal = 16.dp))
             Text(

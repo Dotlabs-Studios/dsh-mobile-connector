@@ -152,6 +152,11 @@ fun PermissionPicker(viewModel: AppViewModel) {
     // Held here rather than in the view model: an unconfirmed intention is
     // view state, and losing it when the sheet closes is the correct outcome.
     var granting by remember { mutableStateOf<PermissionOption?>(null) }
+    // Handing the agent full access is the other tap that changes what may happen
+    // on the PC; it gets the same lock when the owner asked for one.
+    val confirmation = rememberDeviceConfirmation()
+    val confirmTitle = stringResource(R.string.confirm_preset_title)
+    val confirmBody = stringResource(R.string.confirm_preset_body)
 
     ModalBottomSheet(
         onDismissRequest = { viewModel.closePermissions() },
@@ -231,7 +236,12 @@ fun PermissionPicker(viewModel: AppViewModel) {
             onCancel = { granting = null },
             onConfirm = {
                 granting = null
-                viewModel.choosePermission(option.value)
+                val action = { viewModel.choosePermission(option.value) }
+                if (viewModel.confirmActions) {
+                    confirmation.confirm(confirmTitle, confirmBody, action)
+                } else {
+                    action()
+                }
             },
         )
     }

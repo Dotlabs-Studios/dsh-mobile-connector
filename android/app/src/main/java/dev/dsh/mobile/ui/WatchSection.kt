@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -41,7 +43,7 @@ import dev.dsh.mobile.watch.WatchService
  * than what the tap hoped for.
  */
 @Composable
-internal fun WatchSection() {
+internal fun WatchSection(viewModel: AppViewModel) {
     val context = LocalContext.current
     val palette = LocalHarness.current
     var enabled by remember { mutableStateOf(SessionStore(context).watchMode) }
@@ -120,6 +122,48 @@ internal fun WatchSection() {
             color = palette.warningText,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
         )
+    }
+
+    Spacer(Modifier.height(8.dp))
+    HarnessSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        background = palette.surfaceSunken,
+        border = palette.borderSubtle,
+        radius = HarnessRadius.lg,
+    ) {
+        Row(
+            Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconBadge(
+                icon = Icons.Outlined.Lock,
+                tint = palette.accent,
+                background = palette.accentContainer,
+                size = 40.dp,
+                iconSize = 20.dp,
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.confirm_title),
+                    style = HarnessType.body,
+                    fontWeight = FontWeight.SemiBold,
+                    color = palette.textPrimary,
+                )
+                Text(
+                    text = stringResource(R.string.confirm_note),
+                    style = HarnessType.caption,
+                    color = palette.textTertiary,
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Switch(
+                checked = viewModel.confirmActions,
+                onCheckedChange = { viewModel.chooseConfirmActions(it) },
+            )
+        }
     }
 }
 

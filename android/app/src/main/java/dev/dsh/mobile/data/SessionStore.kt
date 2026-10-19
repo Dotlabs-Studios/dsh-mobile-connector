@@ -83,6 +83,18 @@ class SessionStore(context: Context) {
         get() = prefs.getBoolean(KEY_WATCH, false)
         set(value) = prefs.edit().putBoolean(KEY_WATCH, value).apply()
 
+    /**
+     * Whether approving a tool and granting full access ask for the phone's lock.
+     *
+     * Off by default: it is only a real gate when the phone has a lock configured,
+     * and a stray prompt on a phone without one would be theatre. When it is on and
+     * the device has no credential, the action proceeds — the alternative is an app
+     * that cannot be used.
+     */
+    var confirmActions: Boolean
+        get() = prefs.getBoolean(KEY_CONFIRM, false)
+        set(value) = prefs.edit().putBoolean(KEY_CONFIRM, value).apply()
+
     /** Whether a usable pairing exists. */
     val isPaired: Boolean
         get() = !host.isNullOrBlank() && !token.isNullOrBlank()
@@ -139,6 +151,7 @@ class SessionStore(context: Context) {
         const val KEY_LANGUAGE = "language"
         const val KEY_COLLAPSED = "collapsed-workspaces"
         const val KEY_WATCH = "watch-mode"
+        const val KEY_CONFIRM = "confirm-actions"
     }
 }
 

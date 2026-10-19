@@ -645,6 +645,25 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     /**
+     * Whether approvals and full-access grants ask for the phone's lock first.
+     *
+     * A phone that is unlocked in someone's hand can approve a shell command and
+     * grant *full access* in three taps; this is the one control that makes the
+     * phone's own lock part of that decision.
+     */
+    var confirmActions by mutableStateOf(store.confirmActions)
+        private set
+
+    /**
+     * Turn the lock confirmation on or off, and remember it.
+     * @param enabled the new choice.
+     */
+    fun chooseConfirmActions(enabled: Boolean) {
+        confirmActions = enabled
+        store.confirmActions = enabled
+    }
+
+    /**
      * The language the app speaks, as the user chose it.
      *
      * Read once at construction rather than on every composition, because it is

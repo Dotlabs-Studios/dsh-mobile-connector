@@ -20,11 +20,14 @@
 - **Devices are manageable from the phone.** Settings lists every paired device with when it was last seen, and revokes
   one — including this one, which returns to pairing with the address kept. Unpairing no longer resets the theme and the
   language: those are this phone's choices, not the harness's.
-- **Watch mode: the phone tells you when the agent needs you.** An optional foreground service holds `/mobile/events`
-  while the app is closed and posts a notification for the three frames that need a person — an approval waiting, a
+- **Watch mode: the phone tells you when the agent needs you.** An optional foreground service holds `/mobile/events`  while the app is closed and posts a notification for the three frames that need a person — an approval waiting, a
   question asked, a turn that stopped. Turning it on asks for the notification permission, unpairing turns it off, and
   the ongoing notification carries its own Stop. The three frames that earn a notification are decided by a pure,
   JVM-tested decoder, and a reconnect backoff keeps a dead link from becoming a busy loop.
+- **The phone's lock can stand between a tap and the PC.** With *Ask before acting* on, approving a tool and granting
+  *full access* open the platform's device-credential prompt (PIN, pattern, password or the biometric guarding them)
+  instead of acting at once. No new dependency and no new permission: it is the same secret the phone already uses, and
+  a phone with no lock configured proceeds rather than becoming unusable.
 - **Long-press a message to copy it or hand it to another app** — two actions, no export format to own.
 - **The PC address is editable without pairing again.** The token names this device in the harness's table, not an
   address, so a PC that moved (DHCP, a new router, a different tailnet address) is a field to change in Settings →

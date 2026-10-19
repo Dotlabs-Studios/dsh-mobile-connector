@@ -62,6 +62,12 @@
     <string name="component_image_retry">Tap to try again</string>
     <string name="component_scroll_to_bottom">Go to the end of the chat</string>
     <string name="composer_hint">Write a message…</string>
+    <string name="confirm_approval_body">Unlock the phone to allow this to run.</string>
+    <string name="confirm_approval_title">Confirm the approval</string>
+    <string name="confirm_note">Approving a tool and switching to full access require the phone\'s lock.</string>
+    <string name="confirm_preset_body">Unlock the phone to give the agent full access.</string>
+    <string name="confirm_preset_title">Confirm full access</string>
+    <string name="confirm_title">Ask before acting</string>
     <string name="deliverable_save">Download %1$s</string>
     <string name="deliverable_title_many">Artifacts</string>
     <string name="deliverable_title_one">Artifact</string>

@@ -235,6 +235,7 @@ Android 8.0 (API 26) or newer. The release APK published with this project is si
 - **Manage the paired phones** — Settings lists every device with when it was last seen, and revokes one, or this one, without touching the PC.
 - **Change the PC address without pairing again** — the token names this phone, not the address, so Settings → Connection points at a new IP (a new router, a different tailnet address) and keeps the pairing.
 - **Be told when the agent needs you** — an optional watch mode keeps one connection to the PC while the app is closed and notifies you when a turn is waiting for a permission, when the agent asks a question, and when a turn ends. It is a foreground service with one ongoing notification, it is off by default, and it needs Android's notification permission.
+- **Make the phone's lock part of the decision** — *Settings → Alerts → Ask before acting* puts the device-credential prompt between the tap and the host for approving a tool and for granting *full access*. Off by default; a phone with no lock configured has nothing to confirm with and proceeds.
 - **Theme and language**: system / light / dark with two complete palettes, and system / Italian / English.
 
 ### What it looks like

@@ -15,3 +15,9 @@ watch_question_title	L\'agente ha una domanda	The agent has a question
 watch_question_fallback	Domanda in attesa di risposta	Question waiting for an answer
 watch_turn_title	Turno finito	Turn finished
 watch_turn_body	L\'agente ha smesso di lavorare	The agent has stopped working
+confirm_title	Chiedi conferma	Ask before acting
+confirm_note	Per approvare un tool e per passare all\'accesso completo serve il blocco del telefono.	Approving a tool and switching to full access require the phone\'s lock.
+confirm_approval_title	Conferma l\'approvazione	Confirm the approval
+confirm_approval_body	Sblocca il telefono per consentire l\'esecuzione.	Unlock the phone to allow this to run.
+confirm_preset_title	Conferma l\'accesso completo	Confirm full access
+confirm_preset_body	Sblocca il telefono per dare all\'agente accesso completo.	Unlock the phone to give the agent full access.
