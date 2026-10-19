@@ -53,6 +53,7 @@ import dev.dsh.mobile.data.Workspace
 import dev.dsh.mobile.data.applyLanguage
 import dev.dsh.mobile.data.normalizeHost
 import dev.dsh.mobile.data.withLanguage
+import dev.dsh.mobile.watch.WatchService
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -713,6 +714,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun unpair() {
         pausePolling()
         pauseChatPolling()
+        // A watch with no pairing has nothing to watch: the service would sit in a
+        // reconnect loop against a host that now answers 401.
+        WatchService.stop(getApplication())
         store.clear()
         api = null
         sync = ChatSync(noSource)

@@ -1,8 +1,13 @@
 package dev.dsh.mobile.ui
 
+import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,6 +30,7 @@ import androidx.compose.material.icons.outlined.Computer
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.LinkOff
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.SettingsBrightness
 import androidx.compose.material.icons.outlined.Smartphone
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,6 +38,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -54,9 +61,11 @@ import androidx.compose.ui.unit.dp
 import dev.dsh.mobile.R
 import dev.dsh.mobile.data.LanguageMode
 import dev.dsh.mobile.data.PairedDevice
+import dev.dsh.mobile.data.SessionStore
 import dev.dsh.mobile.data.ThemeMode
 import dev.dsh.mobile.data.drawnTag
 import dev.dsh.mobile.data.inForce
+import dev.dsh.mobile.watch.WatchService
 import java.text.DateFormat
 import java.util.Date
 
@@ -164,6 +173,8 @@ fun SettingsSheet(viewModel: AppViewModel) {
                     }
                 }
             }
+
+            WatchSection()
 
             HarnessSectionLabel(stringResource(R.string.settings_section_devices), Modifier.padding(horizontal = 16.dp))
             Text(

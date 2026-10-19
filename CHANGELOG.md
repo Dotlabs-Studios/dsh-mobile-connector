@@ -20,6 +20,12 @@
 - **Devices are manageable from the phone.** Settings lists every paired device with when it was last seen, and revokes
   one — including this one, which returns to pairing with the address kept. Unpairing no longer resets the theme and the
   language: those are this phone's choices, not the harness's.
+- **Watch mode: the phone tells you when the agent needs you.** An optional foreground service holds `/mobile/events`
+  while the app is closed and posts a notification for the three frames that need a person — an approval waiting, a
+  question asked, a turn that stopped. Turning it on asks for the notification permission, unpairing turns it off, and
+  the ongoing notification carries its own Stop. The three frames that earn a notification are decided by a pure,
+  JVM-tested decoder, and a reconnect backoff keeps a dead link from becoming a busy loop.
+- **Long-press a message to copy it or hand it to another app** — two actions, no export format to own.
 - **An approval card shows what is being approved.** The command about to run, or the file and the text about to be
   written, is drawn inside the card from the tool call the transcript already holds — the buttons used to be the only
   thing on it that named the act.

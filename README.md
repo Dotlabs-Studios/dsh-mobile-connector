@@ -109,11 +109,13 @@ The route surface is small and deliberate. Full reference, field by field: **[do
 | `GET` | `/mobile/preview` | Title, description and readable text of a link. |
 | `GET` | `/mobile/events` | Server-Sent Events stream. |
 
-### Live updates: polling, and an event stream for clients that want to be pushed to
+### Live updates: polling, and an event stream for the one place that needs it
 
 `GET /mobile/events` is a Server-Sent Events stream: a `ready` frame on connect, a `retry: 3000` hint, a comment heartbeat every 15 s, and a `session-event` frame for every durable event the harness appends to a session. It is part of the API and it works.
 
-**The Android client does not use it.** It refreshes the session list every 4 seconds and the open chat every 2.5 seconds, and that is a deliberate choice rather than an unfinished one: a poll survives phone suspend, a change of network and a Tailscale tunnel reconnecting, with no reconnection state machine to get wrong, and its cost is one small request per interval. The stream is there for a client that would rather be pushed to.
+**The client's data still comes from polling.** It refreshes the session list every 4 s (15 s when nothing is running) and the open chat every 2.5 s (10 s when idle), and that is a deliberate choice rather than an unfinished one: a poll survives phone suspend, a change of network and a Tailscale tunnel reconnecting, with no reconnection state machine to get wrong, and its cost is one small conditional request per interval.
+
+**One thing does open the stream: the watch service.** When watch mode is on, a foreground service holds `/mobile/events` while the app is closed and turns exactly three frames into notifications — an approval waiting, a question asked, a turn that stopped. Data is still read by polling; the stream is a doorbell, not a pipe.
 
 ### The parts that are not obvious
 
@@ -230,6 +232,7 @@ Android 8.0 (API 26) or newer. The release APK published with this project is si
 - **Pick the model**, with context window, vision support and reasoning effort where the model declares them — note that this is the *PC's* selection, exactly as the desktop's own picker.
 - **Tap a link** for a preview read by the PC, **tap a file link** to read the file itself, and open, download or share **artefacts** the agent declared with `present`.
 - **Manage the paired phones** — Settings lists every device with when it was last seen, and revokes one, or this one, without touching the PC.
+- **Be told when the agent needs you** — an optional watch mode keeps one connection to the PC while the app is closed and notifies you when a turn is waiting for a permission, when the agent asks a question, and when a turn ends. It is a foreground service with one ongoing notification, it is off by default, and it needs Android's notification permission.
 - **Theme and language**: system / light / dark with two complete palettes, and system / Italian / English.
 
 ### What it looks like
@@ -389,6 +392,8 @@ If that perimeter is not enough for you, the lever is the network, not the app: 
 | `This request is no longer pending` | The turn ended, or the harness restarted. Approvals are in-memory by design. |
 | Tapping *Allow* says it was already decided elsewhere | The desktop or another phone answered first. The first answer wins, and that is the intended behaviour. |
 | An image says it could not be loaded | Tap to retry. Images of a session whose agent is no longer loaded are still served from the session log, up to the last 400 messages. |
+| No notification when the agent needs me | Turn on **Settings → Alerts**, and grant the notification permission when asked (Android 13+). A phone that force-stopped the app also kills the service until the app is opened again. |
+| An ongoing "Listening to the PC" notification | That is the watch service holding the event stream. **Stop** on the notification, or the switch in Settings → Alerts, ends it. |
 | `This file belongs to the harness itself` | `/mobile/file` refuses `$DSH_HOME` (device table, credentials). Add a `protectedPaths` entry if you want more fences, and open the file on the PC instead. |
 | Port 4380 is already in use | Change `port` in the plugin row and restart. A nonsensical `port` is refused at boot, with the value in the message. |
 | A link preview says the address is blocked | `preview/blocked` is a non-public destination or a cross-origin redirect, which the harness's fetcher refuses on purpose. |

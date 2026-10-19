@@ -1,0 +1,17 @@
+settings_section_alerts	Avvisi	Alerts
+watch_title	Avvisami quando serve	Tell me when it needs me
+watch_note	Tiene una connessione con il PC e ti avvisa quando un turno chiede un permesso, quando l\'agente fa una domanda e quando un turno finisce. Resta una notifica fissa.	Keeps a connection to the PC and tells you when a turn needs a permission, when the agent asks a question and when a turn ends. It stays as an ongoing notification.
+watch_no_permission	Senza il permesso alle notifiche l\'app non può avvisarti: concedalo dalle impostazioni di Android.	Without the notification permission the app cannot tell you: grant it in Android\'s settings.
+watch_channel_service	Connessione al PC	Connection to the PC
+watch_channel_service_note	La notifica fissa che tiene aperta la connessione.	The ongoing notification that keeps the connection open.
+watch_channel_attention	Serve il tuo intervento	Needs you
+watch_channel_attention_note	Permessi da concedere, domande a cui rispondere, turni finiti.	Permissions to grant, questions to answer, finished turns.
+watch_ongoing_title	In ascolto dal PC	Listening to the PC
+watch_ongoing_body	Ti avviso quando serve il tuo intervento	I will tell you when you are needed
+watch_stop	Ferma	Stop
+watch_approval_title	Serve un permesso	A permission is needed
+watch_approval_body	«%1$s» chiede di essere eseguito	“%1$s” asks to run
+watch_question_title	L\'agente ha una domanda	The agent has a question
+watch_question_fallback	Domanda in attesa di risposta	Question waiting for an answer
+watch_turn_title	Turno finito	Turn finished
+watch_turn_body	L\'agente ha smesso di lavorare	The agent has stopped working

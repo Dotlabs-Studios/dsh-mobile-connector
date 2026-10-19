@@ -30,6 +30,8 @@ repository root, and the Kotlin sources live under `android/app/src/main/java/de
 | `ui/TranscriptViews.kt` | One composable per transcript row: tool card, tool group, delivery, approval, question, working indicator, problem banner. |
 | `ui/MarkdownView.kt`, `ui/Components.kt`, `ui/Inputs.kt`, `ui/Theme.kt`, `ui/Text.kt` | Rendering and kit: markdown drawing, image loading and lightbox, IN/OUT and code cards, palette and type scale, and `TextRef` resolution inside a composition. |
 | `ui/SettingsSheet.kt`, `ui/ModelPicker.kt`, `ui/PermissionPicker.kt` | The three sheets that change a setting. |
+| `ui/WatchSection.kt` | The watch-mode switch, the notification permission it asks for, and the sentence shown when the system refused. |
+| `watch/WatchService.kt` | The foreground service behind watch mode: one SSE connection, three kinds of notification, a reconnect backoff. |
 | `ui/LinkPreview.kt`, `ui/FileSheet.kt`, `ui/DeliverySheet.kt`, `ui/DeliveryFiles.kt` | The readers and the ways out: a page, a linked file, a delivered file with open, download and share. |
 | `ui/PhotoStaging.kt`, `ui/FileStaging.kt` | Picking an image or a file, checking it, and getting it onto the host. |
 
@@ -178,6 +180,29 @@ written and rendering its body as prose would make the text jump on every poll
 an image. `MarkdownBody` parses once per text and draws the blocks with Compose text
 (`ui/MarkdownView.kt:72`).
 
+### Watch mode
+
+Every screen in this app is reactive: it shows what the last poll said. Watch mode is
+the one thing that runs while there is no screen at all. `watch/WatchService.kt` is a
+foreground service that holds `/mobile/events` — the same route the data layer never
+uses — and turns exactly three frames into notifications: an approval waiting, a
+question asked, a `status` frame that says a turn stopped. Nothing else is announced,
+and a frame that cannot be parsed is dropped rather than guessed at.
+
+The parts that decide *whether* something is worth a notification are Android-free
+and tested: `data/SseParser.kt` reads the frames (comments, `retry:`, multi-line
+`data:`), `data/WatchEvents.kt` maps a payload to one of the three events. The service
+itself is the thin part: one OkHttp streaming client, a reconnect backoff capped at a
+minute, a bounded set of ids already announced so a reconnect cannot buzz twice, and a
+short cooldown per session so one finished turn is one notification. `ui/AppVisibility`
+is a single volatile flag the service reads to skip the notification about a turn the
+reader is watching end.
+
+It is off by default, it survives the app being closed, it asks for
+`POST_NOTIFICATIONS` the first time it is switched on, and it is stopped by unpairing —
+a watch with no pairing would otherwise sit in a reconnect loop against a host that
+answers `401`.
+
 ### Theme and language
 
 The palette is a choice, not a system echo: `ThemeMode` is `System`, `Light` or `Dark`
@@ -196,9 +221,8 @@ choice is `System`, `Italian` or `English` and is stored by id (`data/LanguageMo
 (`MainActivity.kt:47`, `data/SessionStore.kt:155`) and changing it recreates the activity
 (`ui/AppViewModel.kt:574`, `data/LanguageChoice.kt:36`).
 
-Both XML files are generated, never edited: the source is the 14 tab-separated tables under
-`tools/l10n/` (key, Italian, English), and `tools/l10n-build.py` writes `res/values/strings.xml` and
-`res/values-en/strings.xml` — 303 resources each today. The generator refuses duplicate keys, empty
+Both XML files are generated, never edited: the source is the 16 tab-separated tables under `tools/l10n/` (key, Italian, English), and `tools/l10n-build.py` writes `res/values/strings.xml` and
+`res/values-en/strings.xml` — 333 resources each today. The generator refuses duplicate keys, empty
 values, a placeholder that exists in one language and not the other, plural forms a language cannot ask
 for, and characters that would not survive XML (`tools/l10n-build.py:15`). `TranslationParityTest` then
 holds the two files against each other on the JVM, which is the only cheap moment to notice that Android

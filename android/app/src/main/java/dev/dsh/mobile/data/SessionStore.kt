@@ -71,6 +71,18 @@ class SessionStore(context: Context) {
         get() = prefs.getStringSet(KEY_COLLAPSED, null)?.toSet() ?: emptySet()
         set(value) = prefs.edit().putStringSet(KEY_COLLAPSED, value).apply()
 
+    /**
+     * Whether the watch service should run while the app is closed.
+     *
+     * Persisted because it is a decision about this phone, made once: the service
+     * has to be restarted by the next launch, and a toggle that forgot itself
+     * would leave the user believing they were being watched over when they were
+     * not.
+     */
+    var watchMode: Boolean
+        get() = prefs.getBoolean(KEY_WATCH, false)
+        set(value) = prefs.edit().putBoolean(KEY_WATCH, value).apply()
+
     /** Whether a usable pairing exists. */
     val isPaired: Boolean
         get() = !host.isNullOrBlank() && !token.isNullOrBlank()
@@ -90,6 +102,7 @@ class SessionStore(context: Context) {
             .remove(KEY_TOKEN)
             .remove(KEY_DEVICE)
             .remove(KEY_COLLAPSED)
+            .remove(KEY_WATCH)
             .apply()
     }
 
@@ -125,6 +138,7 @@ class SessionStore(context: Context) {
         const val KEY_THEME = "theme"
         const val KEY_LANGUAGE = "language"
         const val KEY_COLLAPSED = "collapsed-workspaces"
+        const val KEY_WATCH = "watch-mode"
     }
 }
 

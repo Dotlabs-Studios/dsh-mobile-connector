@@ -18,14 +18,17 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
+import dev.dsh.mobile.data.SessionStore
 import dev.dsh.mobile.data.languageOf
 import dev.dsh.mobile.data.withLanguage
+import dev.dsh.mobile.ui.AppVisibility
 import dev.dsh.mobile.ui.AppViewModel
 import dev.dsh.mobile.ui.ChatScreen
 import dev.dsh.mobile.ui.DshMobileTheme
 import dev.dsh.mobile.ui.PairingScreen
 import dev.dsh.mobile.ui.Screen
 import dev.dsh.mobile.ui.SessionsScreen
+import dev.dsh.mobile.watch.WatchService
 
 /** The single activity hosting the whole app. */
 class MainActivity : ComponentActivity() {
@@ -66,7 +69,21 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // A watch the user turned on survives the app being closed — that is the
+        // whole point of it — so the service is restarted here, when the app is
+        // demonstrably on screen and starting a foreground service is allowed.
+        if (SessionStore(this).watchMode) WatchService.start(this)
         show()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        AppVisibility.visible = true
+    }
+
+    override fun onStop() {
+        AppVisibility.visible = false
+        super.onStop()
     }
 
     /** Builds the composition. Called once per configuration, not once per launch. */
