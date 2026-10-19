@@ -23,6 +23,12 @@ repository root, and the Kotlin sources live under `android/app/src/main/java/de
 | `data/Links.kt`, `data/HostFile.kt`, `data/Preview.kt` | Whether a tapped link is a page or a file, and the two shapes those readers return. |
 | `data/Folders.kt`, `data/Workspaces.kt`, `data/ChatStatus.kt` | The browse pane's decisions (which folder a typed name means, where a create landed); the chat list's structure without words (section keys, the five-chat slice); the five chat statuses with no labels attached. |
 | `data/LanguageMode.kt`, `data/LanguageChoice.kt`, `data/ThemeMode.kt` | The two stored choices and their consequences: which tile is ticked, and whether the activity has to be rebuilt. |
+| `data/ImageSizing.kt` | Two arithmetic rules, pure for testing: how far a picked photo is scaled before upload, and which power-of-two subsample a transcript image is decoded with. |
+| `data/HostFailover.kt` | Which address to try when the current one stops answering: the address in use is never its own fallback, duplicates and blanks are dropped, and a tried address is not retried. |
+| `data/TranscriptSearch.kt` | Flattens a transcript row to the text a search should look at — including the command inside a collapsed card — and filters the rows already held. |
+| `data/MessageQuote.kt` | The quoted form of a message: one `>` per line, cut at a readable length with the cut visible. |
+| `data/SeenCodec.kt` | The storage format of the unread map, `id=millis` lines, kept out of the preferences class so it can be tested without Android. |
+| `data/ApprovalPreview.kt` | What an approval card may show about the call it is asking for: the command, the file, the text about to be written — never a guess. |
 | `data/SessionStore.kt` | Everything that survives a restart (see below). |
 | `data/TextRef.kt` | A message that has been decided but not spelled: resource id plus arguments. |
 | `ui/AppViewModel.kt` | The single state holder: all observable state, both polling loops, sending, staging, and the open/closed state of every sheet. |
@@ -34,8 +40,9 @@ repository root, and the Kotlin sources live under `android/app/src/main/java/de
 | `ui/DiagnosticsDialog.kt` | The connection report: both versions, the address, the measured round trip and the queues, copied as text. |
 | `ui/Confirm.kt` | The device-credential prompt behind *Ask before acting*: a tap that changes what the PC may do waits for the phone's own lock. |
 | `watch/WatchService.kt` | The foreground service behind watch mode: one SSE connection, three kinds of notification, a reconnect backoff. |
+| `ui/AppVisibility.kt` | One volatile flag saying whether the app is on screen; the watch service reads it to skip the notification about a turn the reader is already watching end. |
 | `ui/LinkPreview.kt`, `ui/FileSheet.kt`, `ui/DeliverySheet.kt`, `ui/DeliveryFiles.kt` | The readers and the ways out: a page, a linked file, a delivered file with open, download and share. |
-| `ui/PhotoStaging.kt`, `ui/FileStaging.kt` | Picking an image or a file, checking it, and getting it onto the host. |
+| `ui/PhotoStaging.kt`, `ui/ImageDownscale.kt`, `ui/FileStaging.kt` | Picking an image or a file, checking it, shrinking a photo to what a model reads (on an IO thread), and getting it onto the host. |
 
 ### State and data flow
 
