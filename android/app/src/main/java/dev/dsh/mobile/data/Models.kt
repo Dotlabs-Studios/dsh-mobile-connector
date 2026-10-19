@@ -296,6 +296,17 @@ data class StatusResponse(
     @SerialName("sessionCount") val sessionCount: Int = 0,
     @SerialName("liveCount") val liveCount: Int = 0,
     val version: Int = 0,
+    /** The addresses the host says a phone can dial, LAN and tailnet alike. */
+    val urls: List<HostUrl> = emptyList(),
+)
+
+/** One address the host offers, with the flag that says whether it survives leaving home. */
+@Immutable
+@Serializable
+data class HostUrl(
+    val url: String = "",
+    val address: String = "",
+    val tailscale: Boolean = false,
 )
 
 /** The response to creating a session on the host. */

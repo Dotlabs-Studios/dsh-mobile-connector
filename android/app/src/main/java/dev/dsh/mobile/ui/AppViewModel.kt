@@ -52,7 +52,9 @@ import dev.dsh.mobile.data.visibleTranscript
 import dev.dsh.mobile.data.SessionSummary
 import dev.dsh.mobile.data.Workspace
 import dev.dsh.mobile.data.applyLanguage
+import dev.dsh.mobile.data.failoverCandidates
 import dev.dsh.mobile.data.normalizeHost
+import dev.dsh.mobile.data.nextFailoverHost
 import dev.dsh.mobile.data.withLanguage
 import dev.dsh.mobile.watch.WatchService
 import kotlinx.coroutines.Job
@@ -854,6 +856,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 sync = ChatSync(sourceOf(authed))
                 problem = null
                 codeInput = ""
+                // A new harness means new addresses to learn.
+                alternatesProbed = false
+                failoverTried.clear()
+                store.alternates = emptyList()
                 screen = Screen.Sessions
                 startSessionPolling()
             } catch (error: ApiException) {
@@ -2438,6 +2444,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     /** Consecutive failed chat polls, for the backoff. */
     private var chatFailures = 0
 
+    /** Addresses already tried since the link last worked, so failover cannot loop. */
+    private var failoverTried = mutableSetOf<String>()
+
+    /** Whether this pairing's alternate addresses were already asked for. */
+    private var alternatesProbed = false
+
     /** Called when the app comes to the screen: start what should be running. */
     fun onForeground() {
         foreground = true
@@ -2514,9 +2526,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             sessions = client.sessions(includeSubagents = includeSubagents, query = sessionFilter)
             if (sessions.any { it.running }) problem = null
             listFailures = 0
+            failoverTried.clear()
             markOpenSeen()
+            learnAlternates(client)
         } catch (error: ApiException) {
             listFailures += 1
+            // A dead address is not always a dead harness: the same PC usually
+            // answers on a second one (LAN at home, tailnet everywhere else), and
+            // that address was learned while the link was up.
+            if (error.code == "transport" && failOver()) return
             if (error.status == 401) {
                 problem = ConnectionProblem(error.code, TextRef.of(R.string.error_unauthorized))
             } else if (sessions.isEmpty()) {
@@ -2553,11 +2571,64 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         questionsRouteMissing = false
         if (sessions.any { it.running }) problem = null
         markOpenSeen()
+        failoverTried.clear()
+        learnAlternates(client)
         // A successful list read is the proof that the host is reachable.
         flushOutbox()
         true
     } catch (error: ApiException) {
         if (error.status == 404) false else throw error
+    }
+
+    /**
+     * Remember the other addresses this harness says a phone can dial.
+     *
+     * Asked once per pairing, while the link is up — the only moment the question
+     * can be answered. `/mobile/status` reports the LAN address and, when Tailscale
+     * is running, the tailnet one; keeping both is what lets the app leave the house
+     * without being re-paired.
+     *
+     * @param client the API that just answered.
+     */
+    private fun learnAlternates(client: MobileApi) {
+        if (alternatesProbed) return
+        alternatesProbed = true
+        viewModelScope.launch {
+            runCatching { client.status() }.onSuccess { status ->
+                val others = failoverCandidates(store.host, status.urls.map { it.url })
+                if (others.isNotEmpty() && others != store.alternates) {
+                    store.alternates = others
+                    Log.i(TAG, "learned ${others.size} alternate address(es) for this host")
+                }
+            }
+        }
+    }
+
+    /**
+     * Move to another known address after the current one stopped answering.
+     *
+     * The client and the sync state machine are rebuilt around the new base URL, and
+     * the failure counters reset so the next poll asks it immediately instead of
+     * waiting out a backoff that belonged to the old address.
+     *
+     * @return true when an address was chosen, so the caller can stop treating the
+     *   failure as an outage.
+     */
+    private fun failOver(): Boolean {
+        val token = store.token ?: return false
+        val current = store.host
+        val next = nextFailoverHost(current, store.alternates, failoverTried) ?: return false
+        failoverTried += next
+        store.alternates = failoverCandidates(null, store.alternates.filterNot { it == next } + listOfNotNull(current))
+        store.host = next
+        hostInput = next
+        val client = MobileApi(next, token)
+        api = client
+        sync = ChatSync(sourceOf(client))
+        listFailures = 0
+        chatFailures = 0
+        Log.i(TAG, "failing over from $current to $next; the next poll asks the new address")
+        return true
     }
 
     /**

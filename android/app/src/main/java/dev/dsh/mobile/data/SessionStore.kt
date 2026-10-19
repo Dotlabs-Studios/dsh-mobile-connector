@@ -109,6 +109,25 @@ class SessionStore(context: Context) {
             prefs.edit().putString(KEY_SEEN, encodeSeen(value)).apply()
         }
 
+    /**
+     * The other addresses this harness says a phone can dial.
+     *
+     * Learned from `/mobile/status` while the link is up, because the moment they
+     * matter is the moment the current address stops answering and nothing can be
+     * asked any more. One per line; the tailnet address survives leaving the house
+     * and the LAN one is faster inside it.
+     */
+    var alternates: List<String>
+        get() = prefs.getString(KEY_ALTERNATES, null)
+            ?.lineSequence()
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?.toList()
+            ?: emptyList()
+        set(value) {
+            prefs.edit().putString(KEY_ALTERNATES, value.joinToString("\n")).apply()
+        }
+
     /** Whether a usable pairing exists. */
     val isPaired: Boolean
         get() = !host.isNullOrBlank() && !token.isNullOrBlank()
@@ -130,6 +149,7 @@ class SessionStore(context: Context) {
             .remove(KEY_COLLAPSED)
             .remove(KEY_WATCH)
             .remove(KEY_SEEN)
+            .remove(KEY_ALTERNATES)
             .apply()
     }
 
@@ -161,6 +181,7 @@ class SessionStore(context: Context) {
         const val KEY_WATCH = "watch-mode"
         const val KEY_CONFIRM = "confirm-actions"
         const val KEY_SEEN = "seen-at"
+        const val KEY_ALTERNATES = "alternate-hosts"
     }
 }
 

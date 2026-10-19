@@ -27,6 +27,11 @@
 - **Settings → Diagnostics answers "is the PC there, and is it new enough".** One read of `/mobile/health` shows the app
   version, the plugin version with the wire `apiVersion`, the address, the measured round-trip, the uptime and both
   pending counts, with a copy button for the report. An older host that has no such route is named as one.
+- **The app learns the PC's other addresses and moves to them by itself.** While the link is up, `/mobile/status` reports
+  every address a phone can dial; the LAN and tailnet ones are both kept, and when the current one stops answering the
+  client rebuilds itself around the next candidate and polls it immediately instead of waiting out a backoff that
+  belonged to the old address. Leaving the house no longer means re-pairing, and the candidate choice is a pure function
+  with six JVM tests.
 - **Android lint runs in CI and passes.** It found a real one on the way in: the delivery downloader named
   `MediaStore.Downloads`, a collection that only exists from API 29, in an app whose minimum is 26 — now annotated
   `@RequiresApi(Q)` behind the branch that already guarded it. Two dead brand colours and an unused `ANDROID_ID` read
