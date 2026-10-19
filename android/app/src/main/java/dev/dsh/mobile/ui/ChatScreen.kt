@@ -1,5 +1,6 @@
 package dev.dsh.mobile.ui
 
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -45,6 +47,8 @@ import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -65,8 +69,11 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -573,12 +580,20 @@ private fun MessageItem(
     // A file block is a handle the model was told about, and the reader gets the
     // same one line: the name the store kept and the bytes it stored.
     val files = entry.content.filter { it.type == "file" }
+    // Long-press is the phone's gesture for "what can I do with this", and on a
+    // transcript the two answers are always the same: keep the words, or hand them
+    // to another app.
+    val plain = text.trim()
+    var actionsOpen by remember(entry.seq) { mutableStateOf(false) }
 
     if (isUser) {
         Box(
             Modifier
                 .fillMaxWidth()
-                .padding(start = 40.dp),
+                .padding(start = 40.dp)
+                .pointerInput(plain) {
+                    detectTapGestures(onLongPress = { if (plain.isNotEmpty()) actionsOpen = true })
+                },
             contentAlignment = Alignment.CenterEnd,
         ) {
             Column(
@@ -600,11 +615,19 @@ private fun MessageItem(
                     FileChip(attachmentName(block.name), block.bytes?.let { humanBytes(it) })
                 }
             }
+            MessageActions(text = plain, expanded = actionsOpen, onDismiss = { actionsOpen = false })
         }
         return
     }
 
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .pointerInput(plain) {
+                detectTapGestures(onLongPress = { if (plain.isNotEmpty()) actionsOpen = true })
+            },
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         if (reasoning.isNotBlank()) ReasoningRow(reasoning)
         if (text.isNotBlank()) MarkdownBody(text, palette.textPrimary, onOpenLink = { viewModel.openLink(it) })
         if (images.isNotEmpty()) {
@@ -625,6 +648,44 @@ private fun MessageItem(
                     .padding(horizontal = 10.dp, vertical = 3.dp),
             )
         }
+        MessageActions(text = plain, expanded = actionsOpen, onDismiss = { actionsOpen = false })
+    }
+}
+
+/**
+ * The two things a phone can do with a message.
+ *
+ * Copy puts the text on the clipboard; share hands it to any app that takes text,
+ * which is how a transcript leaves the phone without the app owning an export
+ * format.
+ *
+ * @param text the message's text, already trimmed.
+ * @param expanded whether the menu is open.
+ * @param onDismiss invoked when the menu closes for any reason.
+ */
+@Composable
+private fun MessageActions(text: String, expanded: Boolean, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.component_copy)) },
+            onClick = {
+                onDismiss()
+                clipboard.setText(AnnotatedString(text))
+            },
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.delivery_action_share)) },
+            onClick = {
+                onDismiss()
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, text)
+                }
+                context.startActivity(Intent.createChooser(send, null))
+            },
+        )
     }
 }
 
