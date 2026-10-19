@@ -2253,6 +2253,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val client = api ?: return
         sessionsLoading = true
         try {
+            // One request carries the four reads this screen polls for. A host that
+            // predates the route answers 404 and is served by the four below.
+            if (loadPulse(client)) {
+                listFailures = 0
+                return
+            }
             sessions = client.sessions(includeSubagents = includeSubagents, query = sessionFilter)
             if (sessions.any { it.running }) problem = null
             listFailures = 0
@@ -2274,6 +2280,28 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         // unread: an unanswered approval blocks the agent on the PC.
         loadApprovals()
         loadQuestions()
+    }
+
+    /**
+     * Apply one pulse answer, or report that this host has no pulse route.
+     *
+     * @param client the API to read through.
+     * @return true when the answer was applied; false when the route is missing and
+     *   the caller should fall back to the four separate reads.
+     */
+    private suspend fun loadPulse(client: MobileApi): Boolean = try {
+        val pulse = client.pulse(includeSubagents, sessionFilter)
+        sessions = pulse.sessions
+        workspaces = pulse.workspaces
+        workspacesAvailable = pulse.workspacesAvailable
+        approvals = pulse.approvals
+        pendingQuestions = pulse.questions
+        approvalsRouteMissing = false
+        questionsRouteMissing = false
+        if (sessions.any { it.running }) problem = null
+        true
+    } catch (error: ApiException) {
+        if (error.status == 404) false else throw error
     }
 
     /**

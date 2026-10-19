@@ -302,6 +302,80 @@ class MobileApiTest {
     }
 
     @Test
+    fun `messages can ask for what is new and decodes the paging cursor`() = runBlocking {
+        stub(
+            "/mobile/sessions/session-aaaa/messages",
+            200,
+            """
+            {"sessionId":"session-aaaa","cursor":9,"hasMore":false,"nextBeforeSeq":7,"afterSeq":6,
+             "entries":[{"kind":"message","seq":8,"type":"assistant/message","role":"assistant",
+                         "content":[{"type":"text","text":"ecco"}]}]}
+            """.trimIndent(),
+        )
+        val api = MobileApi(baseUrl, "tok-abc")
+
+        val page = api.messages("session-aaaa", afterSeq = 6, limit = 30)
+
+        assertEquals(1, page.entries.size)
+        assertEquals(8, page.entries[0].seq)
+        assertEquals(7, page.nextBeforeSeq)
+        assertTrue("afterSeq is forwarded", lastRequest().query!!.contains("afterSeq=6"))
+        assertTrue("an incremental read sends no upper bound", !lastRequest().query!!.contains("beforeSeq="))
+    }
+
+    @Test
+    fun `the pulse decodes sessions, projects and both queues`() = runBlocking {
+        stub(
+            "/mobile/pulse",
+            200,
+            """
+            {"sessions":[{"id":"session-aaaa","title":"Chat","running":true}],
+             "workspaces":[{"workspaceId":"ws-1","path":"K:\\\\Repository\\\\Ashfall","title":"Ashfall"}],
+             "workspacesAvailable":true,
+             "approvals":[{"id":"approval-1","toolName":"pwsh","callId":"call-1"}],
+             "questions":[{"id":"q-1","questions":[{"id":"q0","question":"Quale?"}]}],
+             "approvalsPending":1,"questionsPending":1}
+            """.trimIndent(),
+        )
+        val api = MobileApi(baseUrl, "tok-abc")
+
+        val pulse = api.pulse(includeSubagents = true, query = "ash")
+
+        assertEquals(1, pulse.sessions.size)
+        assertEquals("session-aaaa", pulse.sessions[0].id)
+        assertEquals("Ashfall", pulse.workspaces[0].title)
+        assertEquals(true, pulse.workspacesAvailable)
+        assertEquals("approval-1", pulse.approvals[0].id)
+        assertEquals(1, pulse.questions[0].questions.size)
+        assertEquals("Quale?", pulse.questions[0].questions[0].question)
+        assertTrue("the filters are forwarded", lastRequest().query!!.contains("subagents=1"))
+        assertTrue("the search travels with the pulse", lastRequest().query!!.contains("q=ash"))
+    }
+
+    @Test
+    fun `devices decode and a revoke is addressed by id`() = runBlocking {
+        stub(
+            "/mobile/devices",
+            200,
+            """{"items":[{"id":"dev-1","name":"Pixel 8","current":true,"lastSeenAt":1760000000000}]}""",
+        )
+        val api = MobileApi(baseUrl, "tok-abc")
+
+        val devices = api.devices()
+
+        assertEquals(1, devices.size)
+        assertEquals("Pixel 8", devices[0].displayName)
+        assertEquals(true, devices[0].current)
+        assertTrue(devices[0].lastSeenAt > 0L)
+
+        stub("/mobile/devices/dev-1", 200, """{"revoked":true,"id":"dev-1","self":true}""")
+        val revoked = api.revokeDevice("dev-1")
+        assertTrue(revoked.self)
+        assertEquals("DELETE", lastRequest().method)
+        assertEquals("/mobile/devices/dev-1", lastRequest().path)
+    }
+
+    @Test
     fun `send posts text and inline photos in the documented shape`() = runBlocking {
         stub("/mobile/sessions/session-aaaa/messages", 202, """{"accepted":true}""")
         val api = MobileApi(baseUrl, "tok-abc")

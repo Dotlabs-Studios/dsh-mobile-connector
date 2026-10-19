@@ -214,6 +214,28 @@ class MobileApi(
     }
 
     /**
+     * Read sessions, projects, approvals and questions in one request.
+     *
+     * The list screen polls these four together, and this is the version that makes
+     * a tick with nothing new one `304` instead of four bodies. An older host
+     * answers `404`; the caller falls back to the four separate reads.
+     *
+     * @param includeSubagents whether to include subagent child sessions.
+     * @param query optional case-insensitive filter over title, path, and id.
+     */
+    suspend fun pulse(includeSubagents: Boolean = false, query: String = ""): PulseResponse {
+        val params = buildString {
+            append("/mobile/pulse?subagents=")
+            append(if (includeSubagents) "1" else "0")
+            if (query.isNotBlank()) {
+                append("&q=")
+                append(java.net.URLEncoder.encode(query, "UTF-8"))
+            }
+        }
+        return call(params)
+    }
+
+    /**
      * Create a new session on the host so the phone can start a fresh chat.
      *
      * @param cwd the host directory to run in, or null for the host's default.

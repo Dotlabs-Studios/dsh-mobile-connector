@@ -86,6 +86,24 @@ data class DeviceRevoked(
     val self: Boolean = false,
 )
 
+/**
+ * Everything the list screen polls for, in one answer.
+ *
+ * The route exists because four polls became four round trips whose common answer
+ * was "nothing changed". A host too old to answer it replies `404`, and the client
+ * falls back to the four reads rather than failing.
+ */
+@Serializable
+data class PulseResponse(
+    val sessions: List<SessionSummary> = emptyList(),
+    val workspaces: List<Workspace> = emptyList(),
+    @SerialName("workspacesAvailable") val workspacesAvailable: Boolean = false,
+    val approvals: List<ApprovalRequest> = emptyList(),
+    val questions: List<PendingQuestion> = emptyList(),
+    @SerialName("approvalsPending") val approvalsPending: Int = 0,
+    @SerialName("questionsPending") val questionsPending: Int = 0,
+)
+
 /** The response to adopting a host directory as a project. */
 @Serializable
 data class WorkspaceCreated(

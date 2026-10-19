@@ -8,6 +8,8 @@
   instead of re-downloading the newest sixty every 2.5 s; both loops slow down when no turn is running and back off to
   a minute on failure. One owner — the activity — starts and stops them: the list used to keep polling behind an open
   chat, because a per-screen stop-effect never ran for the screen that was not composed.
+- **The list screen reads the pulse.** Sessions, projects, approvals and questions arrive in one request (`/mobile/pulse`)
+  when the host offers it, with the four separate reads still serving a host that predates the route.
 - **A refused send no longer eats the draft.** The composer's text lives in the view model and is cleared only once the
   host accepts the message; a `sending` flag stops a second tap from re-posting spent receipts.
 - **A gap in the tail is recovered instead of spliced.** If events were appended while the app was away and fell out of
