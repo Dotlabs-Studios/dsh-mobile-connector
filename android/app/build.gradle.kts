@@ -67,7 +67,14 @@ android {
             isMinifyEnabled = false
         }
         release {
-            isMinifyEnabled = false
+            // Shrinking is one property away, not one edit away. The default stays
+            // off because a missing keep rule fails at the first decode on a phone
+            // rather than here, and `docs/VERIFICATION.md` is what decides when it
+            // is safe; until then `-PenableR8=true` builds the candidate APK to run
+            // that checklist against, without touching this file.
+            val shrink = (providers.gradleProperty("enableR8").orNull?.toBoolean()) ?: false
+            isMinifyEnabled = shrink
+            isShrinkResources = shrink
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Un APK di release non firmato non si installa: `adb install` lo
             // rifiuta, e l'unica versione che un telefono accetta è una firmata.

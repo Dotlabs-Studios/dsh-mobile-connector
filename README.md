@@ -275,6 +275,9 @@ sdk.dir=C\:\\Users\\you\\AppData\\Local\\Android\\Sdk
 
 # release build
 .\gradlew.bat assembleRelease
+
+# the shrink candidate: 1.72 MB against 11.98 MB, to be run through docs/VERIFICATION.md
+.\gradlew.bat assembleRelease -PenableR8=true
 ```
 
 The APKs land in `app/build/outputs/apk/debug/app-debug.apk` and `app/build/outputs/apk/release/app-release.apk`.
