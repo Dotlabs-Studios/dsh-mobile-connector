@@ -48,6 +48,13 @@
     <string name="chat_queue_behind_turn">Queue behind the turn</string>
     <string name="chat_reasoning">Reasoning</string>
     <string name="chat_remove">Remove</string>
+    <string name="chat_search_close">Close the search</string>
+    <string name="chat_search_hint">Search this chat</string>
+    <plurals name="chat_search_matches">
+        <item quantity="one">%1$d match</item>
+        <item quantity="other">%1$d matches</item>
+    </plurals>
+    <string name="chat_search_none">No matches</string>
     <string name="chat_steer_interrupt">Interrupt and steer</string>
     <string name="chat_title">Chat</string>
     <string name="chat_working">Working ···</string>

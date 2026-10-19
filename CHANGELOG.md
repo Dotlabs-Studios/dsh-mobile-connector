@@ -20,6 +20,10 @@
 - **Devices are manageable from the phone.** Settings lists every paired device with when it was last seen, and revokes
   one — including this one, which returns to pairing with the address kept. Unpairing no longer resets the theme and the
   language: those are this phone's choices, not the harness's.
+- **The open chat is searchable.** The magnifier filters the transcript the phone already holds — message text, a
+  tool's command and output, the file a delivery declares, the note beside an approval — and reports how many rows
+  matched. It reads one already-built list, so a search never asks the host and never shows a row the reader could not
+  have scrolled to; the match rule is a pure function with seven JVM tests.
 - **A row says what changed since you last looked.** One dot on a chat whose `updatedAt` is newer than the last time
   this phone read it, decided from the host's own clock so a phone with a skewed clock cannot light every row, kept
   across restarts, and cleared by reading the chat (the open chat is never marked unread).

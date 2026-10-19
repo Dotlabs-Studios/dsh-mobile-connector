@@ -42,6 +42,7 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.Close
@@ -72,6 +73,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -93,6 +95,7 @@ import dev.dsh.mobile.data.attachmentName
 import dev.dsh.mobile.data.buildTranscript
 import dev.dsh.mobile.data.parseQuestionAnswers
 import dev.dsh.mobile.data.parseQuestions
+import dev.dsh.mobile.data.searchTranscript
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
@@ -122,6 +125,10 @@ fun ChatScreen(viewModel: AppViewModel) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var lightbox by remember { mutableStateOf<ImageRef?>(null) }
+    // In-chat search filters what is already held: it never asks the host, so it
+    // cannot show a result the reader could not have scrolled to.
+    var searching by remember(sessionId) { mutableStateOf(false) }
+    var query by remember(sessionId) { mutableStateOf("") }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { viewModel.stagePhotoFrom(context, it) }
@@ -135,6 +142,7 @@ fun ChatScreen(viewModel: AppViewModel) {
     }
 
     val items = remember(viewModel.entries) { buildTranscript(viewModel.entries) }
+    val visibleItems = remember(items, query) { if (query.isBlank()) items else searchTranscript(items, query) }
     // The arguments of the call an approval is asking about, when the transcript
     // holds them: a card that shows the command or the text about to be written is
     // the difference between approving a name and approving an act.
@@ -219,13 +227,19 @@ fun ChatScreen(viewModel: AppViewModel) {
     // scroll at open lands short of an end that has since moved. Every growth
     // re-arms `canScrollForward`, and that is the signal to close the gap.
     LaunchedEffect(listState, followTail, items.size) {
-        if (!followTail) return@LaunchedEffect
+        if (!followTail || searching) return@LaunchedEffect
         snapshotFlow { listState.canScrollForward }
             .collect { canScrollForward ->
                 if (canScrollForward && followTail && items.isNotEmpty()) {
                     listState.animateScrollToItem(items.lastIndex)
                 }
             }
+    }
+
+    // A search result list is not a transcript to keep pinned: scrolling to its end
+    // on every keystroke turns the search box into a scrollbar.
+    LaunchedEffect(query) {
+        if (query.isNotBlank()) followTail = false
     }
 
     Scaffold(
@@ -240,6 +254,7 @@ fun ChatScreen(viewModel: AppViewModel) {
                 ),
                 running = viewModel.running,
                 onBack = { viewModel.closeSession() },
+                onSearch = { searching = true },
                 onNewElsewhere = { viewModel.openPicker() },
             )
         },
@@ -279,6 +294,42 @@ fun ChatScreen(viewModel: AppViewModel) {
                 ProblemBanner(message = textResource(problem.message), onDismiss = { viewModel.dismissProblem() })
             }
 
+            if (searching) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        HarnessTextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            placeholder = stringResource(R.string.chat_search_hint),
+                            leadingIcon = Icons.Outlined.Search,
+                            modifier = Modifier.weight(1f),
+                        )
+                        HarnessIconTarget(
+                            icon = Icons.Rounded.Close,
+                            description = stringResource(R.string.chat_search_close),
+                            tint = palette.textSecondary,
+                            size = 36.dp,
+                            onClick = {
+                                searching = false
+                                query = ""
+                            },
+                        )
+                    }
+                    if (query.isNotBlank()) {
+                        Text(
+                            text = if (visibleItems.isEmpty()) {
+                                stringResource(R.string.chat_search_none)
+                            } else {
+                                pluralStringResource(R.plurals.chat_search_matches, visibleItems.size, visibleItems.size)
+                            },
+                            style = HarnessType.caption,
+                            color = palette.textTertiary,
+                            modifier = Modifier.padding(start = 4.dp, top = 6.dp),
+                        )
+                    }
+                }
+            }
+
             Box(Modifier.fillMaxSize()) {
                 when {
                     viewModel.entriesLoading && viewModel.entries.isEmpty() -> {
@@ -302,7 +353,7 @@ fun ChatScreen(viewModel: AppViewModel) {
                             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 20.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            if (viewModel.hasOlder) {
+                            if (viewModel.hasOlder && query.isBlank()) {
                                 item(key = "load-older") {
                                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                                         if (viewModel.loadingOlder) {
@@ -317,7 +368,7 @@ fun ChatScreen(viewModel: AppViewModel) {
                                     }
                                 }
                             }
-                            items(items, key = { "${it::class.simpleName}-${it.seq}" }) { item ->
+                            items(visibleItems, key = { "${it::class.simpleName}-${it.seq}" }) { item ->
                                 when (item) {
                                     is TranscriptItem.Message -> MessageItem(
                                         entry = item.entry,
@@ -503,6 +554,7 @@ fun ChatScreen(viewModel: AppViewModel) {
  * @param subtitle the folder it runs in on the PC.
  * @param running whether a turn is in flight, which the subtitle's mark shows.
  * @param onBack returns to the chat list.
+ * @param onSearch opens the in-chat search field.
  * @param onNewElsewhere opens the new-chat picker.
  */
 @Composable
@@ -511,6 +563,7 @@ private fun ChatTopBar(
     subtitle: String,
     running: Boolean,
     onBack: () -> Unit,
+    onSearch: () -> Unit,
     onNewElsewhere: () -> Unit,
 ) {
     val palette = LocalHarness.current
@@ -558,6 +611,15 @@ private fun ChatTopBar(
                 }
             }
             Spacer(Modifier.width(8.dp))
+            HarnessIconTarget(
+                icon = Icons.Outlined.Search,
+                description = stringResource(R.string.chat_search_hint),
+                background = palette.surface,
+                bordered = true,
+                size = 40.dp,
+                onClick = onSearch,
+            )
+            Spacer(Modifier.width(6.dp))
             HarnessIconTarget(
                 icon = Icons.Outlined.FolderOpen,
                 description = stringResource(R.string.chat_new_elsewhere),

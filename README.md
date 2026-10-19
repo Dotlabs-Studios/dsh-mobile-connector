@@ -237,6 +237,7 @@ Android 8.0 (API 26) or newer. The release APK published with this project is si
 - **Be told when the agent needs you** — an optional watch mode keeps one connection to the PC while the app is closed and notifies you when a turn is waiting for a permission, when the agent asks a question, and when a turn ends. It is a foreground service with one ongoing notification, it is off by default, and it needs Android's notification permission.
 - **Make the phone's lock part of the decision** — *Settings → Alerts → Ask before acting* puts the device-credential prompt between the tap and the host for approving a tool and for granting *full access*. Off by default; a phone with no lock configured has nothing to confirm with and proceeds.
 - **See what changed since you last looked** — a row carries one dot when its chat has moved since you read it, decided from the host's own `updatedAt` and remembered across restarts. The open chat is never marked unread.
+- **Search inside the open chat** — the magnifier in the chat's top bar filters what the phone already holds, including the command inside a collapsed tool card and the text of a delivered file; it never asks the host, so it cannot show a result you could not have scrolled to.
 - **Theme and language**: system / light / dark with two complete palettes, and system / Italian / English.
 
 ### What it looks like

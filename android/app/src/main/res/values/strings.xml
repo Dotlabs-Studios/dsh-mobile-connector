@@ -48,6 +48,13 @@
     <string name="chat_queue_behind_turn">Accoda dietro il turno</string>
     <string name="chat_reasoning">Ragionamento</string>
     <string name="chat_remove">Rimuovi</string>
+    <string name="chat_search_close">Chiudi la ricerca</string>
+    <string name="chat_search_hint">Cerca nella chat</string>
+    <plurals name="chat_search_matches">
+        <item quantity="one">%1$d risultato</item>
+        <item quantity="other">%1$d risultati</item>
+    </plurals>
+    <string name="chat_search_none">Nessun risultato</string>
     <string name="chat_steer_interrupt">Interrompi e guida</string>
     <string name="chat_title">Chat</string>
     <string name="chat_working">Al lavoro ···</string>
