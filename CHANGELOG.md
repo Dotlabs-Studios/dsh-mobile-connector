@@ -33,6 +33,10 @@ turns the app from a reader into a remote control that can tell you when it need
 - **The address dialog lists the addresses the PC reported.** Failover uses them by itself; showing them is how a reader
   overrules it — tapping one fills the field, which is the difference between an automatic system and one that can be
   corrected. The list is learned from `/mobile/status` while the link is up and forgotten with the pairing.
+- **R8 is prepared but not switched on.** `app/proguard-rules.pro` now carries the keep rules the app would need —
+  kotlinx.serialization's generated serializers and companions, OkHttp's optional platform warnings — so turning
+  `isMinifyEnabled` on is one line once `docs/VERIFICATION.md` has been executed on a phone. The flag stays off because a
+  missing keep for a serializer fails at the first decode, not at build time.
 - **`docs/VERIFICATION.md` is the on-device checklist.** Watch mode, the lock prompt, diagnostics, the offline outbox and
   address failover only exist on a phone, so each has a table: what to do, what must happen, and what a failure usually
   means. The same page says what is deliberately absent — R8, two different PCs, QR pairing, and a stop that does not

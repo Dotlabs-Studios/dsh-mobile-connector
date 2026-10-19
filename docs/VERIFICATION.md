@@ -73,9 +73,11 @@ other half of every scenario.
 
 ## What is *not* on this list
 
-- **R8/resource shrinking** is not enabled in the release build. It needs a device
-  run of the whole checklist above before it can ship: a stripped serializer fails
-  at the first decode, not at build time.
+- **R8/resource shrinking** is not enabled in the release build. The keep rules it
+  would need are already in `android/app/proguard-rules.pro` (kotlinx.serialization's
+  generated serializers and companions, OkHttp's optional platform classes), so
+  turning it on is one line — but it needs a device run of the whole checklist above
+  first: a stripped serializer fails at the first decode, not at build time.
 - **Two different PCs** (home and office) are not supported: the app holds one
   pairing, with as many addresses for it as the host reports.
 - **QR/mDNS pairing** does not exist yet; the address is typed once and the pairing
