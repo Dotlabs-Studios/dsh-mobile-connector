@@ -20,6 +20,9 @@
 - **Devices are manageable from the phone.** Settings lists every paired device with when it was last seen, and revokes
   one — including this one, which returns to pairing with the address kept. Unpairing no longer resets the theme and the
   language: those are this phone's choices, not the harness's.
+- **A row says what changed since you last looked.** One dot on a chat whose `updatedAt` is newer than the last time
+  this phone read it, decided from the host's own clock so a phone with a skewed clock cannot light every row, kept
+  across restarts, and cleared by reading the chat (the open chat is never marked unread).
 - **Watch mode: the phone tells you when the agent needs you.** An optional foreground service holds `/mobile/events`  while the app is closed and posts a notification for the three frames that need a person — an approval waiting, a
   question asked, a turn that stopped. Turning it on asks for the notification permission, unpairing turns it off, and
   the ongoing notification carries its own Stop. The three frames that earn a notification are decided by a pure,

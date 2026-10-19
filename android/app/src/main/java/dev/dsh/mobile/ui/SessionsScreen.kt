@@ -270,7 +270,7 @@ fun SessionsScreen(viewModel: AppViewModel) {
                                                     if (index > 0) {
                                                         HarnessDivider(Modifier.padding(start = 66.dp), subtle = true)
                                                     }
-                                                    SessionRow(session) { viewModel.open(session) }
+                                                    SessionRow(session, unread = viewModel.isUnread(session)) { viewModel.open(session) }
                                                 }
                                                 toggle?.let { label ->
                                                     if (slice.visible.isNotEmpty()) {
@@ -730,10 +730,11 @@ private fun ApprovalsStrip(viewModel: AppViewModel) {
  * leave the reader comparing them to find out which one is current.
  *
  * @param session the session to render.
+ * @param unread whether something happened in this chat since it was last read.
  * @param onOpen invoked when the row is tapped.
  */
 @Composable
-private fun SessionRow(session: SessionSummary, onOpen: () -> Unit) {
+private fun SessionRow(session: SessionSummary, unread: Boolean = false, onOpen: () -> Unit) {
     val palette = LocalHarness.current
     val status = session.status
     val detail = buildList {
@@ -773,6 +774,18 @@ private fun SessionRow(session: SessionSummary, onOpen: () -> Unit) {
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(Modifier.width(8.dp))
+                // A chat with something new since the last look carries one dot;
+                // the status badge already says what happened, this says that the
+                // reader has not seen it.
+                if (unread) {
+                    Box(
+                        Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(palette.accent),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
                 Text(
                     text = formatTime(session.updatedAt),
                     style = HarnessType.caption,

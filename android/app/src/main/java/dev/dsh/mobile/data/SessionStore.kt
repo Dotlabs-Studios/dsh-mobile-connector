@@ -95,6 +95,21 @@ class SessionStore(context: Context) {
         get() = prefs.getBoolean(KEY_CONFIRM, false)
         set(value) = prefs.edit().putBoolean(KEY_CONFIRM, value).apply()
 
+    /**
+     * The last `updatedAt` this phone has seen for each chat.
+     *
+     * The host's own timestamp is the clock. The phone's clock may disagree with the
+     * PC's by minutes, and comparing two clocks is how an unread badge ends up
+     * permanently lit or permanently dark. Stored as `id=millis` lines, because a
+     * handful of ids does not justify a JSON dependency in the one place that has to
+     * be readable synchronously.
+     */
+    var seenAt: Map<String, Long>
+        get() = decodeSeen(prefs.getString(KEY_SEEN, null))
+        set(value) {
+            prefs.edit().putString(KEY_SEEN, encodeSeen(value)).apply()
+        }
+
     /** Whether a usable pairing exists. */
     val isPaired: Boolean
         get() = !host.isNullOrBlank() && !token.isNullOrBlank()
@@ -115,6 +130,7 @@ class SessionStore(context: Context) {
             .remove(KEY_DEVICE)
             .remove(KEY_COLLAPSED)
             .remove(KEY_WATCH)
+            .remove(KEY_SEEN)
             .apply()
     }
 
@@ -152,6 +168,7 @@ class SessionStore(context: Context) {
         const val KEY_COLLAPSED = "collapsed-workspaces"
         const val KEY_WATCH = "watch-mode"
         const val KEY_CONFIRM = "confirm-actions"
+        const val KEY_SEEN = "seen-at"
     }
 }
 

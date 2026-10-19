@@ -171,6 +171,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     var sessions by mutableStateOf<List<SessionSummary>>(emptyList())
         private set
+
+    /**
+     * The last `updatedAt` this phone has seen for each chat, by session id.
+     *
+     * Kept beside the list because it is what the list's unread dot is decided from,
+     * and persisted so a chat read yesterday is not new again after a restart.
+     */
+    var seenAt by mutableStateOf(store.seenAt)
+        private set
+
+    /** When the seen map was last written, so a running turn does not write per poll. */
+    private var seenWriteAt = 0L
     var sessionsLoading by mutableStateOf(false)
         private set
     var sessionFilter by mutableStateOf("")
@@ -640,6 +652,38 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Whether a row has something the reader has not seen.
+     *
+     * A chat that is open is never unread: the reader is looking at it, and marking
+     * it on every poll would only make the dot disappear from the row behind the
+     * one being read.
+     *
+     * @param session the row to ask about.
+     */
+    fun isUnread(session: SessionSummary): Boolean =
+        session.id != openSession?.id && session.updatedAt > (seenAt[session.id] ?: 0L)
+
+    /**
+     * Record that the open chat has been read, using the host's own timestamp.
+     *
+     * Called after every list read rather than on every keystroke of state: the value
+     * only means something once the host has told us what the newest `updatedAt` is,
+     * and that arrives with the list.
+     */
+    private fun markOpenSeen() {
+        val session = openSession ?: return
+        val row = sessions.firstOrNull { it.id == session.id } ?: return
+        if (row.updatedAt <= 0L || seenAt[session.id] == row.updatedAt) return
+        val next = seenAt + (session.id to row.updatedAt)
+        seenAt = next
+        val now = System.currentTimeMillis()
+        if (now - seenWriteAt > SEEN_WRITE_MS) {
+            store.seenAt = next
+            seenWriteAt = now
+        }
+    }
+
     /** The palette the app draws with, as the user chose it. */
     var themeMode by mutableStateOf(store.themeMode)
         private set
@@ -839,6 +883,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Close the open conversation and return to the list. */
     fun closeSession() {
+        // Marked before the session is let go: after this line there is no open
+        // chat to attribute the read to.
+        markOpenSeen()
+        store.seenAt = seenAt
         pauseChatPolling()
         openSession = null
         entries = emptyList()
@@ -2322,6 +2370,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             sessions = client.sessions(includeSubagents = includeSubagents, query = sessionFilter)
             if (sessions.any { it.running }) problem = null
             listFailures = 0
+            markOpenSeen()
         } catch (error: ApiException) {
             listFailures += 1
             if (error.status == 401) {
@@ -2359,6 +2408,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         approvalsRouteMissing = false
         questionsRouteMissing = false
         if (sessions.any { it.running }) problem = null
+        markOpenSeen()
         true
     } catch (error: ApiException) {
         if (error.status == 404) false else throw error
@@ -2472,6 +2522,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
         /** Ceiling for the failure backoff: a minute is enough to stop hammering. */
         const val FAILURE_CAP_MS = 60_000L
+
+        /** How often the seen map may be written while a chat is open. */
+        const val SEEN_WRITE_MS = 15_000L
 
         /**
          * The longest turn span the indicator is willing to print.
