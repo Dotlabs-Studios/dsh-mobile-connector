@@ -325,6 +325,8 @@ node test/find-free-session.mjs http://127.0.0.1:4399 <token>
 
 **Generated strings**: `tools/l10n-build.py` writes `res/values/strings.xml` and `res/values-en/strings.xml` from the tables in `tools/l10n/*.tsv`; `--check` fails if they are out of date. Nobody edits those XML files by hand — see [docs/L10N.md](docs/L10N.md).
 
+**On every push**: `.github/workflows/ci.yml` runs all three gates — the plugin suites, the generated-strings check, and the JVM tests plus a debug APK artefact — so the release gate is not a command somebody has to remember.
+
 ---
 
 ## Repository layout
@@ -345,6 +347,7 @@ docs/
   shots/                    the screenshots in this README
 test/                       plugin, e2e and UI-stub suites
 tools/                      string generator, launcher icon generator
+.github/workflows/          the CI gate: plugin checks, strings, JVM tests, APK
 CHANGELOG.md                what each release contains
 ```
 
