@@ -152,6 +152,11 @@ turns the app from a reader into a remote control that can tell you when it need
 - 362 JVM tests, including the contract fixtures captured by the plugin suite and the new pure modules: image sizing,
   the watch feed, address failover, transcript search, message quoting and the unread map's codec.
 - `gradlew lintDebug` clean; generated strings in sync with the sixteen tables (369 resources).
+- **The API reference cites the plugin by file, not by line.** It used to point at `lib/index.js:NNNN`; the file grew by
+  two thousand lines in the middle and most coordinates below the pairing section were wrong, which reads exactly like
+  being right. A repair attempt that matched prose identifiers to definitions produced confident nonsense (`port`,
+  `status`, `callId`) and was thrown away. The citations now name the file, the shapes are enforced by the plugin suite
+  and the contract fixtures, and `python tools/docrefs.py --check` (in CI) keeps the numbers from creeping back.
 - 13 smoke checks against the **UI stub** (`test/ui-stub-check.mjs`, now in CI): it boots the stand-in harness and
   asserts the routes a screen cannot render without — pair, status, session list, a transcript with a message and a tool
   card, and the 404 envelope.

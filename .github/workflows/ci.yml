@@ -28,6 +28,10 @@ jobs:
         run: node test/ui-stub-check.mjs
       - name: Generated strings are in sync with the tables
         run: python tools/l10n-build.py --check
+      # The API reference cites the plugin by file, and this is what keeps someone
+      # from reintroducing line numbers that will silently drift.
+      - name: API reference has no line coordinates
+        run: python tools/docrefs.py --check
 
   android:
     name: Android tests and APK

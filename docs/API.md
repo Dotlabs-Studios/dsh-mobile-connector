@@ -1,29 +1,32 @@
 ## HTTP API reference
 
-> **On the line numbers.** References of the form `lib/index.js:NNNN` point at the
-> source this section was written against, and the file has since grown in the middle
-> of it: treat a number past the pairing section as a hint rather than a coordinate.
-> The prose, the tables and — above all — the route's own behaviour are what this
-> document promises; a stale pointer is a documentation bug, not a contract change.
+> **On the citations.** A `lib/index.js` in parentheses names the file a behaviour lives
+> in; it deliberately carries no line number. The reference once cited coordinates, and
+> after the file grew by two thousand lines in the middle most of them were wrong — a
+> stale coordinate reads exactly like a correct one, which is worse than a coarse one.
+> What this document promises is the prose, the tables and the route's behaviour, and
+> those shapes are enforced where a number never could: `test/plugin-check.mjs` and the
+> committed fixtures in `test/contract/`. `python tools/docrefs.py --check` keeps the
+> numbers from creeping back.
 
 `dsh-plugin-mobile-sync` owns its own `node:http` listener, on the `host` and `port` from its plugin configuration and
 nowhere near the Web GUI's loopback server. Both have safe defaults — `127.0.0.1:4380`, which admits no phone until
-`host` is set — and a nonsensical `port` is refused at boot rather than bound (`lib/index.js:2269`, `2276`).
+`host` is set — and a nonsensical `port` is refused at boot rather than bound (`lib/index.js`).
 Everything it serves is under the base path `/mobile`, and a request whose first segment is not `mobile` is answered
-`404 not-found` before authentication runs (`lib/index.js:2469`). Auth is a paired-device token — `Authorization:
+`404 not-found` before authentication runs (`lib/index.js`). Auth is a paired-device token — `Authorization:
 Bearer <token>` — required on every route except `POST /mobile/pair` and `GET|POST /mobile/pairing-code` (the second
-one answers loopback only), and compared in constant time (`lib/index.js:2425`). Bodies are JSON objects, read whole
+one answers loopback only), and compared in constant time (`lib/index.js`). Bodies are JSON objects, read whole
 and capped at 48 MiB — except `POST /mobile/files`, whose body *is* the file's bytes, and `POST /mobile/pair`, which
 carries a code and a label and is capped at 4 KiB; answers are `application/json; charset=utf-8` with `cache-control:
 no-store`, apart from the two byte streams noted below. Every failure, the router's own included, uses one envelope
-(`lib/index.js:1650`):
+(`lib/index.js`):
 
 ```json
 { "error": { "code": "unauthorized", "message": "a paired device token is required" } }
 ```
 
 Binding `127.0.0.1` is the default and is logged as a warning, because a phone then cannot reach the listener at all
-(`lib/index.js:2326`).
+(`lib/index.js`).
 
 ### Routes
 
@@ -63,23 +66,23 @@ Binding `127.0.0.1` is the default and is logged as a warning, because a phone t
 
 Path parameters are percent-decoded after splitting, so an id containing `/` is sent as `%2F` and stays one segment.
 An unrecognised path *under* `/mobile` still authenticates first, so a bad token answers `401`, not `404`
-(`lib/index.js:2222`–`2343`).
+(`lib/index.js`).
 
 ### POST /mobile/pair
 
 Body `{ code, device }`: `code` is the pairing code the PC printed at boot or minted on demand; `device` is a label,
 trimmed, cut to 80 characters, defaulting to `Android device`. Answer `200 { token, device, id, reused }`, plus
-`rotated: true` on a rotation (`lib/index.js:2623`).
+`rotated: true` on a rotation (`lib/index.js`).
 
 Two ways in, and **a name is never one of them**:
 
 - **A pairing code.** Single use: retired the instant a device joins, so nothing else can ride it. There is
   deliberately **no expiry** — a short window only punishes a slow restart, while single use is what closes the door
-  (`lib/index.js:2233`, `2191`). A spent code is `403 pairing-closed` whatever the body says; a wrong code is `403
+  (`lib/index.js`). A spent code is `403 pairing-closed` whatever the body says; a wrong code is `403
   pairing-refused`. Success mints a *new* token for a *new* device, so two phones with the same label are two rows
   with two tokens.
 - **The token the caller already holds.** A request carrying a valid bearer token rotates that device's token and
-  keeps its `id`, with no code involved: the token was the proof (`lib/index.js:2633`). This is the path back for a
+  keeps its `id`, with no code involved: the token was the proof (`lib/index.js`). This is the path back for a
   credential you think leaked, and it needs nothing from the PC.
 
 A phone that has neither — a wiped app, a lost token — comes back through `GET /mobile/pairing-code` on the PC. That
@@ -87,66 +90,66 @@ route replaced the old "re-pair by name" shortcut, which handed out an existing 
 the label; the name was doing the job of a password, and it is printed in `/mobile/status`.
 
 - State lives in `$DSH_HOME/storages/mobile-sync.json`, mode `0600`, holding `{ version: 3, setupCode, devices: [{ id,
-  name, token, createdAt, lastSeenAt }] }` (`lib/index.js:2243`). An empty `setupCode` means "spent" and is what the
+  name, token, createdAt, lastSeenAt }] }` (`lib/index.js`). An empty `setupCode` means "spent" and is what the
   loader trusts; a byte-order mark is stripped first, because this is exactly the file a person edits by hand. A file
   that does not parse is moved aside as `mobile-sync.json.corrupt-<ts>` and replaced with a file that holds a freshly
-  minted code, so log and disk agree (`lib/index.js:2158`).
+  minted code, so log and disk agree (`lib/index.js`).
 - Writes are **serialised and atomic**: the table goes to a flushed sibling file and is renamed over the old one
-  (`lib/index.js:2233`). A crash mid-write leaves the previous table intact, and two pair requests arriving together
+  (`lib/index.js`). A crash mid-write leaves the previous table intact, and two pair requests arriving together
   cannot drop each other's device.
 - `id` is 12 hex characters derived from the token at creation and kept across rotations; it is what `/mobile/devices`
   shows and what a revoke names. `lastSeenAt` is updated in memory by every authenticated request and travels to disk
-  with the next save, so it means last activity rather than last pairing (`lib/index.js:2437`).
+  with the next save, so it means last activity rather than last pairing (`lib/index.js`).
 
 ### GET|POST /mobile/pairing-code
 
 Mints a new pairing code and returns `200 { code, pairingOpen }`, logging it as the boot path does
-(`lib/index.js:2682`). Refuses anything that is not loopback with `403 loopback-only`: a code minted in reply to a
+(`lib/index.js`). Refuses anything that is not loopback with `403 loopback-only`: a code minted in reply to a
 request from the network is a code the network has already seen. Open `http://127.0.0.1:4380/mobile/pairing-code` on
 the PC — or `curl -X POST` it — when a reinstalled app needs to pair without restarting the harness.
 
 ### GET /mobile/health
 
 `200 { ok, apiVersion, pluginVersion, appVersion, port, uptimeSeconds, devices, streams, pendingApprovals,
-pendingQuestions }` (`lib/index.js:2789`). Nothing here touches the session controller, so it answers on a bad link
+pendingQuestions }` (`lib/index.js`). Nothing here touches the session controller, so it answers on a bad link
 and is the cheap "is the PC there, and is it new enough" probe. `appVersion` echoes an `x-dsh-mobile-app` request
 header when the client sends one.
 
 ### GET /mobile/devices
 
 `200 { items: [{ id, name, createdAt, lastSeenAt, current }] }`, `current` marking the caller; tokens never appear
-(`lib/index.js:2697`).
+(`lib/index.js`).
 
 ### DELETE /mobile/devices/{id}
 
 `200 { revoked: true, id, self }`. A device may revoke *itself* — that is what unpairing from the phone means — and
 `self` says so, because the caller's token stops working on the very next request. An unknown id is `404
-device/not-found` (`lib/index.js:2721`).
+device/not-found` (`lib/index.js`).
 
 ### GET /mobile/status
 
 No parameters. `200 { ok, apiVersion, pluginVersion, host, port, urls, devices, pairingOpen, sessionCount, liveCount,
-requests, uptimeSeconds, version }` (`lib/index.js:2809`). `urls` is one `{ url, address, tailscale }` per reachable
+requests, uptimeSeconds, version }` (`lib/index.js`). `urls` is one `{ url, address, tailscale }` per reachable
 non-loopback IPv4 address, with the Tailscale range (a CGNAT address in `100.64.0.0/10`) flagged because that is the
-one that works off the home network (`lib/index.js:352`). `devices` is `{ id, name, createdAt, lastSeenAt, current }`
+one that works off the home network (`lib/index.js`). `devices` is `{ id, name, createdAt, lastSeenAt, current }`
 only — never tokens. `sessionCount` and `liveCount` are `0` when the host mounts no session controller, which is a
-fact rather than a failure (`lib/index.js:2812`). `requests` is bounded: unknown paths fold into `/mobile/*` instead
-of creating a key each (`lib/index.js:2760`).
+fact rather than a failure (`lib/index.js`). `requests` is bounded: unknown paths fold into `/mobile/*` instead
+of creating a key each (`lib/index.js`).
 
 ### GET /mobile/sessions
 
 `subagents=1` includes child sessions (only the exact string `1` counts); `q` is a case-insensitive substring over
 title, cwd, project title and id; `workspaces=0` skips the project lookup and serves every row ungrouped. Answer `200
 { items: [...] }`, each row `id`, `title`, `cwd`, `workspaceId`, `workspaceTitle`, `running`, `agentAvailable`,
-`blank`, `updatedAt`, `lastPromptAt`, `parentSessionId`, `origin`, and usually `status` (`lib/index.js:2453`).
+`blank`, `updatedAt`, `lastPromptAt`, `parentSessionId`, `origin`, and usually `status` (`lib/index.js`).
 
 `status` is one of `running`, `completed`, `failed`, `stopped`, `idle` — a word, not a colour, because the host says
-what happened and the phone decides how to draw it (`lib/index.js:666`). It can be **absent**: a row whose history has
+what happened and the phone decides how to draw it (`lib/index.js`). It can be **absent**: a row whose history has
 not been read yet arrives without a dot, since an absent dot claims nothing and the next poll fills it in
-(`lib/index.js:2602`). A running chat is answered from the host's flag and a blank chat is `idle` with no log read;
+(`lib/index.js`). A running chat is answered from the host's flag and a blank chat is `idle` with no log read;
 every other row is read once per `updatedAt`, and at most 24 reads are started per request, so a cold list is never as
-slow as its own worst case (`lib/index.js:2607`, `98`). There is no pagination: the whole list is filtered and sorted
-by `updatedAt`, and the project lookup is one workspace read for the page (`lib/index.js:2462`). The answer carries an
+slow as its own worst case (`lib/index.js`). There is no pagination: the whole list is filtered and sorted
+by `updatedAt`, and the project lookup is one workspace read for the page (`lib/index.js`). The answer carries an
 entity tag; send it back as `if-none-match` and an unchanged list is a `304` with no body.
 
 ### GET /mobile/pulse
@@ -162,7 +165,7 @@ project registry, which is a fact rather than a failure.
 Body `{ workspaceId?, cwd?, agentPreset? }`. `workspaceId` takes precedence over `cwd`, and that is the point rather
 than a quirk: creating *by project* attaches the chat to the project's session account, which is what makes it appear
 in the desktop sidebar immediately, while creating by directory alone leaves it invisible on the PC until the next
-project mutation (`lib/index.js:2739`). Answer `201 { sessionId, agentPreset }`. The path shape is not validated here;
+project mutation (`lib/index.js`). Answer `201 { sessionId, agentPreset }`. The path shape is not validated here;
 the controller's own rules apply, and its refusals travel back through the code classifier.
 
 ### GET /mobile/sessions/{id}/messages
@@ -171,7 +174,7 @@ the controller's own rules apply, and its refusals travel back through the code 
 invalid-request` — `60abc` is a typo, not a page size. `beforeSeq` (integer ≥ 0) is the exclusive upper bound, absent
 meaning the newest page. `afterSeq` (integer ≥ 0) is the **incremental** read: only entries newer than it are returned,
 which is what makes a phone's 2.5 s poll an empty array instead of sixty entries it already holds. The two cursors are
-mutually exclusive (`400`), and both are parsed strictly (`lib/index.js:3320`).
+mutually exclusive (`400`), and both are parsed strictly (`lib/index.js`).
 
 Answer `200 { sessionId, cursor, hasMore, nextBeforeSeq, entries, afterSeq? }`. `cursor` is the log cursor, not the
 newest message sequence: it comes from the `follow` opening snapshot precisely because the `page` call reports only the
@@ -180,16 +183,16 @@ seq to page backwards from, and it is present even when `entries` is empty — a
 otherwise leave a client with no cursor to ask for. `afterSeq` is echoed only when the request used it.
 
 Every one of these answers carries an **entity tag** and honours `if-none-match` with `304` and no body
-(`lib/index.js:1635`); `cache-control` is `no-cache`, so a client may keep the last answer and revalidate it cheaply
+(`lib/index.js`); `cache-control` is `no-cache`, so a client may keep the last answer and revalidate it cheaply
 instead of re-downloading a transcript that has not moved.
 
 `entries` are `wireEvent` objects, oldest first; events with nothing a chat client can show are dropped rather than
-forwarded, so `entries` can be shorter than the log (`lib/index.js:1459`). Each entry carries `kind`, `seq`, `type`,
+forwarded, so `entries` can be shorter than the log (`lib/index.js`). Each entry carries `kind`, `seq`, `type`,
 an optional `time`, and its kind's own fields: `message` (`role`, `content`, `interrupted`, `source`), `tool-call` /
 `tool-result` (`turn`, `step`, `callId`, `name`, `arguments` / `isError`, `content`), `turn-start` / `turn-end`
 (`turn`, `reason`), `step-start` / `step-end`, `deliverable` (`files: [{ index, path, description? }]`),
 `approval-asked` (`approvalId`, `name`, `callId`, `reason`), `approval-decided` (`approvalId`, `outcome`). Content
-blocks reduce to `text`, `reasoning`, `image`, `file`, `tool-call` (`lib/index.js:1030`). A session with no readable
+blocks reduce to `text`, `reasoning`, `image`, `file`, `tool-call` (`lib/index.js`). A session with no readable
 history answers `404 session/not-found`.
 
 ### POST /mobile/sessions/{id}/messages
@@ -207,181 +210,181 @@ invalid-request`. Photos travel inline as base64 image parts on purpose: the har
 the model actually sees the picture, whereas a staged receipt would surface as an opaque `file` block — the wrong
 modality for a photo. Files are the opposite case and are *named*, not carried, because the controller resolves the
 receipt into a stored reference and hands the model one line naming a read-only path, so a twenty-page PDF costs a
-line of context instead of twenty pages of it (`lib/index.js:2849`). `prompt` is called with the request's own abort
-signal, which the RPC gateway normally injects (`lib/index.js:2894`).
+line of context instead of twenty pages of it (`lib/index.js`). `prompt` is called with the request's own abort
+signal, which the RPC gateway normally injects (`lib/index.js`).
 
 ### GET /mobile/sessions/{id}/images/{attachmentId}/raw
 
 `200` with the image's recorded media type as `content-type` and `cache-control: private, max-age=86400, immutable`.
 The sibling spelling `…/{attachmentId}/data` matches the same arm and answers `200 { attachmentId, mediaType, width,
-height, data }` with base64 `data` instead of bytes (`lib/index.js:2337`, `3010`).
+height, data }` with base64 `data` instead of bytes (`lib/index.js`).
 
 A stored reference cannot be rebuilt from the id alone — a read verifies the recorded bytes and geometry against it —
 so the reference is *found* first: across the live agents, then inside the addressed session's durable log, which is
-what makes history work for a chat whose agent is not loaded (`lib/index.js:3014`, `3084`). Two honest consequences:
+what makes history work for a chat whose agent is not loaded (`lib/index.js`). Two honest consequences:
 the live-agent scan ignores the session in the path, so `{id}` scopes only the log fallback; and that fallback covers
 the newest 400 messages, so an older image answers a truthful `404 not-found` rather than a wrong image
-(`lib/index.js:3046`, `3076`).
+(`lib/index.js`).
 
 ### POST /mobile/images
 
 Body `{ data, name? }`, `data` being base64 — padded, unpadded and URL-safe alphabets all accepted
-(`lib/index.js:204`). Answer `201 { attachmentId, name, bytes, sha256 }`, the digest computed here over the decoded
+(`lib/index.js`). Answer `201 { attachmentId, name, bytes, sha256 }`, the digest computed here over the decoded
 bytes. Empty data is `400 invalid-request`, over 12 MiB is `413 image-too-large`, and a host with no attachment store
-is `503 unavailable` (`lib/index.js:2918`).
+is `503 unavailable` (`lib/index.js`).
 
 ### POST /mobile/files
 
 Query parameters, not a JSON body: `sessionId` (required — a file is staged for one session) and `name` (optional).
 The request body **is** the file's exact bytes (`application/octet-stream`); the answer is `201 { receiptId,
-attachmentId, name, bytes }` (`lib/index.js:2963`).
+attachmentId, name, bytes }` (`lib/index.js`).
 
 The ceiling is 32 MiB. A client that declares its size gets the plain `413 file-too-large` before a byte is read; one
 that streams without declaring is stopped mid-body, and that interruption is translated back into the same 413 rather
-than surfacing as the store's generic "attachment could not be persisted" (`lib/index.js:231`, `2974`). Deliberately
+than surfacing as the store's generic "attachment could not be persisted" (`lib/index.js`). Deliberately
 no cancellation signal is handed to the store: the body *is* the upload, and Node emits the request's `close` as soon
 as its last chunk has been read, so passing that signal would abort every upload that finished correctly
-(`lib/index.js:2984`). The two-step shape is the harness's, not this plugin's invention — a `file` part carries a
+(`lib/index.js`). The two-step shape is the harness's, not this plugin's invention — a `file` part carries a
 receipt minted when the bytes were stored, keyed to the receiving agent, so a receipt cannot be spent on another chat
-(`lib/index.js:2939`).
+(`lib/index.js`).
 
 ### GET /mobile/dirs
 
 `path` (string, default the host account's home) is an absolute host directory the host itself reported. Answer `200 {
-path, home, crumbs, entries, truncated }` (`lib/index.js:2721`). `entries` is `{ name, path, hidden }` and holds
+path, home, crumbs, entries, truncated }` (`lib/index.js`). `entries` is `{ name, path, hidden }` and holds
 **directories only** — files are filtered out, because the question here is "which folder do I run in", not "what is
-in this one" (`lib/index.js:486`). `hidden` flags a dot-name without removing the row. At most 500 child rows are
-materialized and `truncated` reports the cut rather than silently hiding rows (`lib/index.js:84`, `500`).
+in this one" (`lib/index.js`). `hidden` flags a dot-name without removing the row. At most 500 child rows are
+materialized and `truncated` reports the cut rather than silently hiding rows (`lib/index.js`).
 
 On Windows the level's leading crumbs are prefixed with the machine's other volume roots, each shaped `{ name: "C:",
 path: "C:\\", hidden: false, drive: true }`, minus the one the level is already on: a volume root has no parent to
-step up to, so without those shortcuts the top of the tree is a dead end (`lib/index.js:441`, `323`). A drive holding
-no media, or one the account cannot read, is an empty level rather than an error (`lib/index.js:475`). A path that is
+step up to, so without those shortcuts the top of the tree is a dead end (`lib/index.js`). A drive holding
+no media, or one the account cannot read, is an empty level rather than an error (`lib/index.js`). A path that is
 not fully qualified, or a Windows drive-relative spelling such as `C:progetti`, is `400 invalid-request` — a remote
 browser must send a path it read from the host, never one that resolves against the host process's current drive
-(`lib/index.js:409`). An unreadable target is `404 directory-unreadable`.
+(`lib/index.js`). An unreadable target is `404 directory-unreadable`.
 
 ### POST /mobile/dirs
 
 Body `{ parent, name }`: an existing absolute directory and a single segment. Answer `201 { created, …listing }`,
 where `created` is the new absolute path and the rest is the **parent's** refreshed level, so the client never has to
-re-ask what it just changed (`lib/index.js:2721`). A `name` that is empty, `.`, `..` or contains a separator is `400
+re-ask what it just changed (`lib/index.js`). A `name` that is empty, `.`, `..` or contains a separator is `400
 invalid-request`; an existing child is `409 directory-exists`; any other failure is `409 directory-create-failed`
-(`lib/index.js:518`).
+(`lib/index.js`).
 
 ### GET /mobile/workspaces
 
 `200 { items: [{ workspaceId, path, title, sessionIds, createdAt, updatedAt }] }`, in the registry's own order — the
 order the desktop sidebar shows. The read attaches to the controller's projection stream, takes its `baseline` frame
-and detaches, which is what makes it complete with no pagination (`lib/index.js:2506`, `2553`). A host mounting no
+and detaches, which is what makes it complete with no pagination (`lib/index.js`). A host mounting no
 workspace controller answers `503 unavailable` rather than an empty list.
 
 ### POST /mobile/workspaces
 
 Body `{ path }`, an absolute host directory. Answer `201 { workspaceId, path, title, sessionIds, created: true }` for
-a new project, and `200` with `created: false` when that directory already had one (`lib/index.js:2569`): the status
+a new project, and `200` with `created: false` when that directory already had one (`lib/index.js`): the status
 code is the idempotency signal, so a phone that lost track of the list converges instead of creating duplicates. A
 relative path is `400 invalid-request`; the controller's own `workspace/invalid-path` and `workspace/name-conflict`
 arrive as `409`.
 
 ### DELETE /mobile/workspaces/{workspaceId}
 
-`200 { ok: true, deleted: true, workspaceId }` (`lib/index.js:2701`). Non-destructive by contract: the folder, its
+`200 { ok: true, deleted: true, workspaceId }` (`lib/index.js`). Non-destructive by contract: the folder, its
 files and the chat histories are never touched — the project leaves the list and its chats become ungrouped, which is
 what makes it safe to expose to a client that cannot show a confirmation dialog about someone's filesystem.
 
 ### GET /mobile/models
 
 `200 { default, routableProviders, groups, failures }`, each group `{ id, name, models }` and each model `{ provider,
-id, name, description, reasoning, vision, contextWindow, maxTokens }` (`lib/index.js:3134`). The catalogue is the
+id, name, description, reasoning, vision, contextWindow, maxTokens }` (`lib/index.js`). The catalogue is the
 session controller's own — the very object the desktop picker renders — so the phone offers the same choices instead
 of a second, drifting idea of what is configured. It carries no capability data, so models are enriched from the LLM
 registry; that lookup is per-model and can be slow, hence two deliberate bounds: enrichment runs only when the
 flattened catalogue is at most 60 models, and a model whose details cannot be resolved stays in the list with `vision:
-null`, `contextWindow: null`, `maxTokens: null` rather than disappearing from the picker (`lib/index.js:3144`, `66`).
+null`, `contextWindow: null`, `maxTokens: null` rather than disappearing from the picker (`lib/index.js`).
 `reasoning` falls back to the catalogue's own value and must stay absent rather than empty, because the picker shows
 an effort chooser only for a model that declares efforts.
 
 ### POST /mobile/models
 
 Body `{ sessionId, provider, model, reasoningEffort? }`; the first three are required or the answer is `400
-invalid-request`. Answer `200 { selected }` (`lib/index.js:3198`). This is the same call the desktop picker makes,
+invalid-request`. Answer `200 { selected }` (`lib/index.js`). This is the same call the desktop picker makes,
 **including its side effect**: the harness records the choice as the deployment default as well as the session's own
 selection, so switching a model from the phone also changes the PC's default, and the code says so rather than hiding
-it (`lib/index.js:3184`). A switch does not disturb a step already running; the harness applies the new route to the
+it (`lib/index.js`). A switch does not disturb a step already running; the harness applies the new route to the
 next request.
 
 ### GET /mobile/approvals
 
 `200 { items: [...] }`, each item `{ id, sessionId, toolName, callId, reason, displayReason, createdAt, outcomes }`,
-with `outcomes` always `["allowed-once", "rejected"]` (`lib/index.js:3226`, `70`). The answer carries an entity tag, so
+with `outcomes` always `["allowed-once", "rejected"]` (`lib/index.js`). The answer carries an entity tag, so
 a poll with nothing pending revalidates as a `304`. `displayReason` is the harness's
-locale map reduced to one line, English first (`lib/index.js:1307`). A phone polls, so it cannot rely on catching the
+locale map reduced to one line, English first (`lib/index.js`). A phone polls, so it cannot rely on catching the
 stream frame that announced a request: this read is what makes a card survive a reconnect, a backgrounded app, or a
-frame that arrived while nobody was looking (`lib/index.js:3220`). Pending approvals live in memory and are never
+frame that arrived while nobody was looking (`lib/index.js`). Pending approvals live in memory and are never
 persisted, because an approval belongs to one open turn and a harness restart cancels it — a card on disk could be
-answered after the request it belonged to is gone (`lib/index.js:1574`).
+answered after the request it belonged to is gone (`lib/index.js`).
 
 ### POST /mobile/approvals/{id}
 
 Body `{ outcome }`, one of `allowed-once` or `rejected`. Answer `200 { resolved: true, approvalId, outcome }`
-(`lib/index.js:3244`). Anything else is `400 invalid-request`: the vocabulary is fail-closed, only `allowed-once`
+(`lib/index.js`). Anything else is `400 invalid-request`: the vocabulary is fail-closed, only `allowed-once`
 grants anything, and a typo must never be read as consent. An approval already settled — by this phone, another phone
 or the desktop — answers `409 approval/settled` rather than 500, because **losing that race is normal**
-(`lib/index.js:3237`). When the phone does not answer within the configured window (`approvalWaitMs`, default 120 s)
+(`lib/index.js`). When the phone does not answer within the configured window (`approvalWaitMs`, default 120 s)
 this plugin stops waiting and hands the decision back to the chain, which is the behaviour without the plugin and must
-not turn into a silent deny (`lib/index.js:1929`, `68`).
+not turn into a silent deny (`lib/index.js`).
 
 ### GET /mobile/questions
 
-`200 { items: [...] }`, each item `{ id, sessionId, callId, createdAt, expired, questions }` (`lib/index.js:3268`);
+`200 { items: [...] }`, each item `{ id, sessionId, callId, createdAt, expired, questions }` (`lib/index.js`);
 each question is `{ id, header, question, detail, multiSelect, options: [{ label, description }] }`. The answer carries
 an entity tag, like the approvals list. Fields are copied
 rather than forwarded wholesale, so a client never has to defend itself against whatever keys a model invented;
 `multi_select` and `multiSelect` are both accepted because both spellings are in the wild, and a question with no id
-gets the positional stand-in `q<n>` rather than being dropped (`lib/index.js:1011`).
+gets the positional stand-in `q<n>` rather than being dropped (`lib/index.js`).
 
 Live questions come first, then late ones flagged `expired: true`. A question whose harness-side two-minute window has
 closed is **not** closed here: the harness marks it `continued`, tells the model to carry on and still accepts an
-answer, so the card stays and only the channel changes (`lib/index.js:1778`). At most 20 late questions are
+answer, so the card stays and only the channel changes (`lib/index.js`). At most 20 late questions are
 remembered, each for at most 30 minutes. A question that never had a `callId` cannot be addressed by the harness's
 RPC, so it is announced as settled with `by: "timeout"` instead of kept as a button that could only return a conflict
-(`lib/index.js:1791`, `80`, `82`).
+(`lib/index.js`).
 
 ### POST /mobile/questions/{id}
 
 Body `{ answers: [{ id, selected: [labels], custom? }] }`, a non-empty array; anything else is `400 invalid-request`
-(`lib/index.js:1087`). `selected` holds labels, not positions, and each answer is keyed by its question's own id.
+(`lib/index.js`). `selected` holds labels, not positions, and each answer is keyed by its question's own id.
 Answer `200 { resolved: true, questionId, answers, late }`, where `late: true` means it went through the harness's
-late channel (`lib/index.js:3285`).
+late channel (`lib/index.js`).
 
 Two channels, in order: while the question is live, resolving the pending record settles the waterfall the tool is
 waiting on; after the window has closed the only way in is the question service's own `answer`, which takes the live
 Agent rather than the session id because it must reach into that agent's inbox. `409 question/settled` covers every
 way of arriving too late — already settled, the asking session no longer live, a reply already queued
 (`REPLY_QUEUED`), or the service returning `false` for a question it no longer holds. `503 unavailable` means the host
-mounts no question service (`lib/index.js:3302`–`3327`).
+mounts no question service (`lib/index.js`).
 
 ### GET /mobile/permissions
 
 `sessionId` (string, absent by default) asks for that chat's current preset; the catalog itself is process-wide either
 way. Answer `200 { sessionId, current, defaultPreset, options }`, each option `{ value, name, description, sandbox,
-approval }` (`lib/index.js:3360`). `options[].value` is the host's own identifier and the only thing that may be sent
+approval }` (`lib/index.js`). `options[].value` is the host's own identifier and the only thing that may be sent
 back; the label is presentation and a deployment may word it freely. The sandbox and approval knobs are filled in from
 `resolve`, because the catalog carries only the label — without them the phone could offer "Full access" without being
-able to say what it does (`lib/index.js:3345`). `sessionId` and `current` are `null` when the client named no session
+able to say what it does (`lib/index.js`). `sessionId` and `current` are `null` when the client named no session
 or the host does not hold that one, since an unknown current value is deliberately not the same as a preset named
-"null" (`lib/index.js:3367`). A host with no preset table answers `503 permission/unavailable`.
+"null" (`lib/index.js`). A host with no preset table answers `503 permission/unavailable`.
 
 ### POST /mobile/permissions
 
 Body `{ sessionId, preset }`, both required. Answer `200 { sessionId, current }` and broadcast a `permission-changed`
-frame (`lib/index.js:3395`). This is the one route that changes what the agent is **allowed** to do rather than what
+frame (`lib/index.js`). This is the one route that changes what the agent is **allowed** to do rather than what
 it is doing, and the two knobs it moves are the sandbox mode and the approval policy — so `full access` here means an
 agent that no longer asks before changing files or running commands. Two consequences are deliberate: the preset is
 validated against the host's own catalog rather than forwarded, because `set` hands out that ability and a typo must
 not become a permission (`400 permission/unknown`); and the switch is recorded, since `set` appends a
-`permission/preset` entry to the session log, making a change from a phone auditable on the PC (`lib/index.js:3376`).
+`permission/preset` entry to the session log, making a change from a phone auditable on the PC (`lib/index.js`).
 `404 permission/no-session` means that chat is not loaded on this harness; `409 permission/refused` carries the host's
 own words when its admission check refuses the switch. With `allowRemoteFullAccess: false` in the plugin row, a preset
 whose resolved **approval knob** is `never` is refused with `403 permission/remote-forbidden` before anything reaches
@@ -392,26 +395,26 @@ stays switchable.
 
 `ref` (string, required) is an absolute path, a `file:` URL, or a path relative to the chat named by `session`
 (string, optional, the chat on screen). Answer `200 { path, name, bytes, text, truncated, line }`
-(`lib/index.js:3916`). `line` is the 1-based line a `#L35` fragment pointed at, or `null` when the link named none —
+(`lib/index.js`). `line` is the 1-based line a `#L35` fragment pointed at, or `null` when the link named none —
 the reader still reads the whole file, but saying which line the link meant is the difference between honouring the
-link and quietly dropping half of it (`lib/index.js:3513`).
+link and quietly dropping half of it (`lib/index.js`).
 
 The reference travels exactly as the agent wrote it, because a relative one means the file *next to the chat that
 printed it*; the host process's own working directory is the one base that must never be used, since it is the
 process's accident and would read a different file with the same name without saying so. A fragment is stripped before
 resolution, since it names a place *inside* a file, and a `../` step out of the chat's folder is allowed rather than
-fenced: the same device can already browse the whole disk through `/mobile/dirs` (`lib/index.js:733`).
+fenced: the same device can already browse the whole disk through `/mobile/dirs` (`lib/index.js`).
 
 The same freedom is why this route is fenced at all: a reference can name the harness's own installation, and two of
 those files are worth more than the conversation. Anything inside `$DSH_HOME` — which is where the device table lives,
 tokens included, next to the provider credentials — and any `.credentials*` file is refused with `403 file/forbidden`
-before the file is opened, and `protectedPaths` in the plugin configuration adds more (`lib/index.js:3938`). The fence
+before the file is opened, and `protectedPaths` in the plugin configuration adds more (`lib/index.js`). The fence
 is on *this* route only: `/mobile/delivery` addresses a declaration out of the harness's log, so its paths are the
 agent's choice rather than the client's.
 
 Bounds and refusals: at most 512 KiB is read and at most 120 000 characters are served, with `truncated` reporting
 which cut applied; a byte of NUL anywhere in what was read is what makes a file binary here, answering `415
-file/binary` (`lib/index.js:848`). `400 file/invalid` covers an empty, over-long or drive-relative reference; `409
+file/binary` (`lib/index.js`). `400 file/invalid` covers an empty, over-long or drive-relative reference; `409
 file/no-session` a relative reference with no folder to resolve against; `404 file/not-found` and `400
 file/not-a-file` the filesystem itself.
 
@@ -419,49 +422,49 @@ file/not-a-file` the filesystem itself.
 
 `session` (required) names the chat; `seq` (integer ≥ 0, required) is the sequence of the `deliverables/presented`
 event; `index` (integer ≥ 0, required) is the file's position in that event's own array; `raw=1` streams the bytes
-instead of describing them (`lib/index.js:3568`).
+instead of describing them (`lib/index.js`).
 
 Without `raw`: `200 { path, name, bytes, text, truncated, binary, description? }`. With `raw=1`: the bytes,
 `content-type: application/octet-stream`, and `content-disposition: attachment` carrying the name both ASCII-folded
 and as an RFC 5987 `filename*`, because the two halves of the ecosystem disagree about which they read
-(`lib/index.js:3614`). No media type is guessed: this plugin owns no media-type table, and the honest generic type
+(`lib/index.js`). No media type is guessed: this plugin owns no media-type table, and the honest generic type
 plus the file's own name lets the phone decide with the table it already has.
 
 The address is a **coordinate, not a path**: the declaration is read out of the harness's own log, so a phone cannot
 ask this route for a file no agent declared, and a coordinate read long ago still resolves to what the log says now. A
-relative declaration is resolved against the chat's own folder, exactly as a file link is (`lib/index.js:3544`). A
+relative declaration is resolved against the chat's own folder, exactly as a file link is (`lib/index.js`). A
 binary file is an *answer* here (`binary: true`), not a failure — a delivered PDF or slide deck is a file the phone
 downloads, and answering `file/binary` would put "cannot read this" on a card whose whole point is that the file is
-there and is fine (`lib/index.js:783`). `404 delivery/not-found` means that chat declares no file at that coordinate,
+there and is fine (`lib/index.js`). `404 delivery/not-found` means that chat declares no file at that coordinate,
 including for a delivery older than the bounded scan; `413 file/too-large` means past the 64 MiB download bound, which
 is finite on purpose — the route streams rather than buffers, but an unbounded route invites pulling a disk image over
-a metered connection by tapping the wrong row (`lib/index.js:137`, `3667`).
+a metered connection by tapping the wrong row (`lib/index.js`).
 
 ### GET /mobile/preview
 
 `url` (string ≤ 2048 chars, required) must be `http` or `https`. Answer `200 { url, kind, title?, description?, text,
-truncated, statusCode? }` (`lib/index.js:3716`). `url` is where the fetch ended after redirects, `kind` is `html` when
+truncated, statusCode? }` (`lib/index.js`). `url` is where the fetch ended after redirects, `kind` is `html` when
 the text was reduced from a document and `text` when the source was passed through verbatim, and `title` /
-`description` appear only when the page declared them (`lib/index.js:1268`). Text is reduced to at most 30 000
+`description` appear only when the page declared them (`lib/index.js`). Text is reduced to at most 30 000
 characters, cut on a word boundary where possible, and `truncated` reports either the host's own cut or this
-phone-sized one (`lib/index.js:1193`, `112`).
+phone-sized one (`lib/index.js`).
 
 The fetch runs on the host, under the harness's own web policy — public destinations only, DNS pinned, byte and time
 caps, no credentials — because that is the one the agent's own `web_fetch` uses, and the phone must not be a second,
-softer entrance to the network this machine sits on (`lib/index.js:3479`, `3702`). Answers are cached for 5 minutes,
+softer entrance to the network this machine sits on (`lib/index.js`). Answers are cached for 5 minutes,
 16 entries, keyed by the canonical URL; the web seam is consulted *before* the cache, so a deployment that has just
-stopped offering previews answers `503` rather than serving a remembered page (`lib/index.js:3717`, `110`).
+stopped offering previews answers `503` rather than serving a remembered page (`lib/index.js`).
 
 ### GET /mobile/events
 
 Server-Sent Events, authenticated with the same bearer header as every other route. The response is
 `text/event-stream; charset=utf-8` with `cache-control: no-store, no-transform`, `connection: keep-alive` and
 `x-accel-buffering: no`, which is what stops a reverse proxy from buffering frames the phone is waiting for
-(`lib/index.js:3758`). Two frames are written immediately — `retry: 3000`, so a dropped client comes back in three
+(`lib/index.js`). Two frames are written immediately — `retry: 3000`, so a dropped client comes back in three
 seconds, and `data: {"event":"ready","port":…}` — and every 15 seconds a bare `: keep-alive` comment line follows, a
-comment rather than an event so no client has to know to ignore it (`lib/index.js:55`, `3765`).
+comment rather than an event so no client has to know to ignore it (`lib/index.js`).
 
-Every frame is exactly `data: <json>\n\n`, and the JSON always carries an `event` discriminator (`lib/index.js:2164`):
+Every frame is exactly `data: <json>\n\n`, and the JSON always carries an `event` discriminator (`lib/index.js`):
 
 | `event` | Payload fields | Emitted when |
 | --- | --- | --- |
@@ -477,13 +480,13 @@ Every frame is exactly `data: <json>\n\n`, and the JSON always carries an `event
 
 What is broadcast, precisely: the host's own `session/event` and `api-session/status` feeds, plus everything this
 plugin settles — approvals opened and settled, questions opened, expired and settled, and a permission change
-(`lib/index.js:1633`, `1641`, `1997`, `2015`, `1771`, `1807`, `1825`, `3419`). The REST calls do **not** each emit a
+(`lib/index.js`). The REST calls do **not** each emit a
 frame of their own: sending a prompt produces `session-event` frames only because the host feed produces them. There
 is no `id:` line and no replay, so a frame emitted while the phone is disconnected is gone — which is why the approval
-and question lists are pollable reads rather than stream-only (`lib/index.js:3220`, `3261`).
+and question lists are pollable reads rather than stream-only (`lib/index.js`).
 
 A reader that stops reading is dropped rather than buffered: once a connection's unflushed bytes pass 1 MiB the plugin
-destroys it, and the client's own `retry: 3000` brings it back (`lib/index.js:2368`). A phone that suspends, loses a
+destroys it, and the client's own `retry: 3000` brings it back (`lib/index.js`). A phone that suspends, loses a
 tunnel or flies into a dead cell is one reconnection; without the cap it was one megabyte per stalled client in the
 harness's heap.
 
@@ -534,7 +537,7 @@ Every failure uses the envelope above. Codes raised by this plugin:
 | `unavailable` | 503 | A required host service is missing: session controller, workspace controller, attachment store, file uploads or question service. |
 
 Codes the host itself throws are classified rather than replaced, so the harness's own vocabulary survives the hop
-(`lib/index.js:907`):
+(`lib/index.js`):
 
 | Code | Status | Meaning |
 | --- | --- | --- |
@@ -548,16 +551,16 @@ Codes the host itself throws are classified rather than replaced, so the harness
 
 Two notes that matter for clients. `approval/settled` and `question/settled` are **expected outcomes of a race**, not
 bugs: the desktop GUI and every paired phone are listeners on the same first-answer-wins waterfall, so a 409 means
-somebody else got there first (`lib/index.js:3237`). And `config.debug === true` changes the table above: a failure
+somebody else got there first (`lib/index.js`). And `config.debug === true` changes the table above: a failure
 that is not already an `HttpError` answers `500` with the error's own name prefixed to the message and its code
-unchanged, skipping the status mapping so the underlying failure is visible to the client (`lib/index.js:915`).
+unchanged, skipping the status mapping so the underlying failure is visible to the client (`lib/index.js`).
 
 ### Where this comes from
 
 Everything above is read from `dsh-plugin-mobile-sync/lib/index.js` at the lines cited inline; the route list and
-parameter spellings come from `handle()` at `lib/index.js:2222`–`2343`, and the field names are cross-checked against
+parameter spellings come from `handle()` at `lib/index.js`, and the field names are cross-checked against
 the Kotlin decoders in `android/app/src/main/java/dev/dsh/mobile/data/MobileApi.kt` and `Models.kt`. One assumption
 this contradicts: the Android client in this repository never opens `GET /mobile/events` — it polls the list routes,
 so the SSE vocabulary above is implemented and broadcast but not consumed by the shipped app. Another: `GET
 /mobile/permissions` calls a deployment without presets "a fact worth reporting rather than a failure to hide" in its
-own comment while answering `503 permission/unavailable` (`lib/index.js:3427`, `3433`).
+own comment while answering `503 permission/unavailable` (`lib/index.js`).
