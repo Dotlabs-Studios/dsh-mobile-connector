@@ -930,6 +930,31 @@ async function writeContractFixtures() {
   ok(sent?.attachment === undefined, 'and nothing else: the reference is the controller\'s to resolve')
   ok(fileContent.some((part) => part.type === 'text' && part.text === 'leggi questa nota'), 'text and file travel in one prompt')
 
+  // A retry with the same client id must not append the message twice: after a
+  // lost answer the phone cannot tell "accepted" from "never arrived".
+  const beforeRetry = promptCalls.length
+  const keyed = await authed('/mobile/sessions/session-aaaa/messages', {
+    method: 'POST',
+    body: JSON.stringify({ text: 'di nuovo', clientMessageId: 'cm-1' }),
+  })
+  ok(keyed.status === 202, `a keyed send is accepted (got ${keyed.status})`)
+  ok(keyed.body.duplicate === false, 'a first keyed send is not a duplicate')
+  ok(promptCalls.length === beforeRetry + 1, 'a keyed send prompts once')
+
+  const retried = await authed('/mobile/sessions/session-aaaa/messages', {
+    method: 'POST',
+    body: JSON.stringify({ text: 'di nuovo', clientMessageId: 'cm-1' }),
+  })
+  ok(retried.status === 200, `a retried keyed send is not a second prompt (got ${retried.status})`)
+  ok(retried.body.duplicate === true, 'the retry says it was a duplicate')
+  ok(promptCalls.length === beforeRetry + 1, 'the retry did not reach the controller')
+
+  const otherKey = await authed('/mobile/sessions/session-aaaa/messages', {
+    method: 'POST',
+    body: JSON.stringify({ text: 'diverso', clientMessageId: 'cm-2' }),
+  })
+  ok(otherKey.status === 202 && promptCalls.length === beforeRetry + 2, 'a different key is a different message')
+
   const fileOnly = await authed('/mobile/sessions/session-aaaa/messages', {
     method: 'POST',
     body: JSON.stringify({ files: [{ receiptId: 'receipt-2' }] }),

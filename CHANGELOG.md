@@ -27,6 +27,14 @@
 - **Settings → Diagnostics answers "is the PC there, and is it new enough".** One read of `/mobile/health` shows the app
   version, the plugin version with the wire `apiVersion`, the address, the measured round-trip, the uptime and both
   pending counts, with a copy button for the report. An older host that has no such route is named as one.
+- **A message composed while the link is down waits instead of dying.** A transport failure moves it to a small in-memory
+  outbox with the reason shown above the composer; the next poll that succeeds sends it. The sender mints a
+  `clientMessageId`, and the host answers a repeat as `duplicate: true` without prompting twice — so a retry after a lost
+  answer is the same message, not a second one. A refusal that is not a transport failure is dropped with its reason,
+  because retrying a `writer-held` forever is a queue that never drains.
+- **The plugin remembers a prompt id for a while.** `POST /mobile/sessions/{id}/messages` accepts `clientMessageId` and
+  answers a repeat with `200 { accepted: true, duplicate: true }`, in memory and bounded (256), which is what makes the
+  phone's retry safe.
 - **The open chat is searchable.** The magnifier filters the transcript the phone already holds — message text, a
   tool's command and output, the file a delivery declares, the note beside an approval — and reports how many rows
   matched. It reads one already-built list, so a search never asks the host and never shows a row the reader could not

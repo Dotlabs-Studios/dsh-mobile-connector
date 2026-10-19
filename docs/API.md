@@ -194,8 +194,9 @@ history answers `404 session/not-found`.
 | `mode` | `steer` \| anything | `queue` | Only the exact string `steer` steers. |
 | `images` | array ≤ 8 | absent | Inline base64 photos: `mediaType` ∈ `image/png`, `image/jpeg`, `image/webp`, `image/gif`, each decoded ≤ 12 MiB, optional `name`. |
 | `files` | array ≤ 8 | absent | `{ receiptId }` from `POST /mobile/files`; the bytes are already the host's. |
+| `clientMessageId` | string ≤ 80 | absent | The sender's own id for this message. A second request carrying one already accepted answers `200 { accepted: true, duplicate: true }` without prompting again, which is what makes an offline retry safe. |
 
-Answer `202 { accepted: true }`; a message needs text, at least one image, or at least one file, else `400
+Answer `202 { accepted: true, duplicate: false }`; a message needs text, at least one image, or at least one file, else `400
 invalid-request`. Photos travel inline as base64 image parts on purpose: the harness admits them as image content, so
 the model actually sees the picture, whereas a staged receipt would surface as an opaque `file` block — the wrong
 modality for a photo. Files are the opposite case and are *named*, not carried, because the controller resolves the

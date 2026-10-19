@@ -46,6 +46,11 @@
     <string name="chat_model_fallback">modello</string>
     <string name="chat_new_elsewhere">Nuova chat in un\'altra cartella</string>
     <string name="chat_notice_event">evento</string>
+    <string name="chat_outbox_note">Partono appena il PC risponde</string>
+    <plurals name="chat_outbox_pending">
+        <item quantity="one">%1$d messaggio in coda</item>
+        <item quantity="other">%1$d messaggi in coda</item>
+    </plurals>
     <string name="chat_queue_behind_turn">Accoda dietro il turno</string>
     <string name="chat_reasoning">Ragionamento</string>
     <string name="chat_remove">Rimuovi</string>
@@ -153,6 +158,7 @@
     <string name="error_no_host">nessun host collegato</string>
     <string name="error_not_text">Non è un file di testo, quindi non c\'è niente da leggere qui.</string>
     <string name="error_nowhere">nessun indirizzo</string>
+    <string name="error_offline_queued">PC non raggiungibile: il messaggio è in coda e parte appena risponde.</string>
     <string name="error_pairing_expired">Codice scaduto: riavvia DeepSeek Harness per generarne uno nuovo.</string>
     <string name="error_pairing_failed">Accoppiamento non riuscito.</string>
     <string name="error_pairing_rate_limited">Troppi tentativi da questo indirizzo: aspetta un minuto e riprova.</string>

@@ -59,6 +59,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 /** The top-level destination the app is showing. */
 enum class Screen { Pairing, Sessions, Chat }
@@ -128,6 +129,22 @@ data class DeliveryBusy(
 /** What one finished delivery action left behind, and how it went. */
 data class DeliveryNotice(val text: String, val ok: Boolean)
 
+/**
+ * One message waiting for the link to come back.
+ *
+ * [clientMessageId] is minted when the send is first attempted and reused for every
+ * retry: the host treats a second arrival with the same id as the same message, which
+ * is what makes a retry after a lost answer safe rather than a duplicate.
+ */
+data class QueuedMessage(
+    val clientMessageId: String,
+    val sessionId: String,
+    val text: String,
+    val images: List<OutgoingImage>,
+    val files: List<OutgoingFile>,
+    val steer: Boolean,
+)
+
 /** Identifies one delivered file across the card, the sheet, and its notices. */
 internal fun deliveryKey(sessionId: String, seq: Int, index: Int): String = "$sessionId#$seq#$index"
 
@@ -163,6 +180,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Whether a send is in flight, so the composer can refuse a second tap. */
     var sending by mutableStateOf(false)
+        private set
+
+    /**
+     * Messages composed while the PC was unreachable, oldest first.
+     *
+     * In memory rather than on disk: this is a retry within the same session, not a
+     * mailbox, and a queue that outlived the app would raise questions (which token,
+     * which host) that a phone should not answer silently.
+     */
+    var outbox by mutableStateOf<List<QueuedMessage>>(emptyList())
         private set
 
     var pairing by mutableStateOf(false)
@@ -867,6 +894,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         openSession = null
         stagedPhotos.clear()
         stagedFiles.clear()
+        outbox = emptyList()
         uploadingFiles = emptyList()
         problem = null
         approvals = emptyList()
@@ -1408,10 +1436,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         sending = true
-        Log.i(TAG, "sending textChars=${body.length} photos=${photos.size} files=${files.size} steer=$steer session=${session.id}")
+        val clientMessageId = UUID.randomUUID().toString()
+        Log.i(TAG, "sending textChars=${body.length} photos=${photos.size} files=${files.size} steer=$steer session=${session.id} id=$clientMessageId")
         viewModelScope.launch {
             try {
-                client.send(session.id, body, images = photos, files = files, steer = steer)
+                client.send(
+                    session.id,
+                    body,
+                    images = photos,
+                    files = files,
+                    steer = steer,
+                    clientMessageId = clientMessageId,
+                )
                 Log.i(TAG, "send accepted by host")
                 // The host has it: only now may the composer forget it.
                 draft = ""
@@ -1421,24 +1457,72 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 refresh()
             } catch (error: ApiException) {
                 Log.w(TAG, "send failed code=${error.code} status=${error.status} message=${error.message}")
-                problem = ConnectionProblem(
-                    error.code,
-                    when {
-                        // The harness grants one writer per session. When the
-                        // desktop GUI holds it, the phone cannot append, and the
-                        // user needs to know why rather than seeing a raw error.
-                        error.code.endsWith("writer-held") ->
-                            TextRef.of(R.string.error_writer_held)
-                        error.code.endsWith("agent-busy") -> TextRef.of(R.string.error_agent_busy)
-                        else -> describe(error)
-                    },
-                )
+                if (error.code == "transport") {
+                    // The link is down, not the message: it moves to the outbox with
+                    // the id it already presented, and the next successful poll sends
+                    // it again — the host answers the repeat as a duplicate if the
+                    // first attempt did arrive.
+                    outbox = outbox + QueuedMessage(clientMessageId, session.id, body, photos, files, steer)
+                    draft = ""
+                    stagedPhotos.clear()
+                    stagedFiles.clear()
+                    problem = ConnectionProblem("queued", TextRef.of(R.string.error_offline_queued))
+                } else {
+                    problem = ConnectionProblem(
+                        error.code,
+                        when {
+                            // The harness grants one writer per session. When the
+                            // desktop GUI holds it, the phone cannot append, and the
+                            // user needs to know why rather than seeing a raw error.
+                            error.code.endsWith("writer-held") ->
+                                TextRef.of(R.string.error_writer_held)
+                            error.code.endsWith("agent-busy") -> TextRef.of(R.string.error_agent_busy)
+                            else -> describe(error)
+                        },
+                    )
+                }
             } catch (error: Exception) {
                 Log.w(TAG, "send failed with an unexpected error", error)
                 problem = ConnectionProblem("internal", TextRef.of(error) ?: TextRef.of(R.string.error_send_failed))
             } finally {
                 sending = false
             }
+        }
+    }
+
+    /** The messages still in the outbox for one chat. */
+    fun queuedFor(sessionId: String?): List<QueuedMessage> =
+        if (sessionId == null) emptyList() else outbox.filter { it.sessionId == sessionId }
+
+    /**
+     * Try to deliver the oldest queued message, now that the link answered.
+     *
+     * Called after a poll that succeeded: the read is the proof that the host is
+     * reachable, so there is no separate connectivity check to get wrong. A refusal
+     * that is not a transport failure is final — the message is dropped with its
+     * reason shown, because retrying a `writer-held` forever is a queue that never
+     * drains.
+     */
+    private suspend fun flushOutbox() {
+        val client = api ?: return
+        if (sending) return
+        val next = outbox.firstOrNull() ?: return
+        try {
+            client.send(
+                next.sessionId,
+                next.text,
+                images = next.images,
+                files = next.files,
+                steer = next.steer,
+                clientMessageId = next.clientMessageId,
+            )
+            outbox = outbox.filterNot { it.clientMessageId == next.clientMessageId }
+            Log.i(TAG, "outbox delivered id=${next.clientMessageId}")
+            if (outbox.isEmpty()) problem = null
+        } catch (error: ApiException) {
+            if (error.code == "transport") return
+            outbox = outbox.filterNot { it.clientMessageId == next.clientMessageId }
+            problem = ConnectionProblem(error.code, describe(error))
         }
     }
 
@@ -2446,6 +2530,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         questionsRouteMissing = false
         if (sessions.any { it.running }) problem = null
         markOpenSeen()
+        // A successful list read is the proof that the host is reachable.
+        flushOutbox()
         true
     } catch (error: ApiException) {
         if (error.status == 404) false else throw error
@@ -2513,6 +2599,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 problem = ConnectionProblem("unauthorized", TextRef.of(R.string.error_unauthorized))
             else -> sync.lastError?.let { failure -> problem = ConnectionProblem(failure.code, describe(failure)) }
         }
+        // The transcript poll just succeeded, so this is the moment the outbox can
+        // try again — no separate connectivity probe, and no retry while the link is
+        // still down.
+        if (sync.lastError == null) flushOutbox()
     }
 
     /** Mirror the sync state machine into the observable Compose state. */

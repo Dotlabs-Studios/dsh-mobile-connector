@@ -81,6 +81,13 @@ const TRACKED_ROUTES = new Set([
 ])
 /** Distinct request-counter keys kept before the counter is reset. */
 const MAX_TRACKED_ROUTE_KEYS = 64
+/**
+ * Prompt receipts remembered for retries.
+ *
+ * A phone retries within seconds of a lost answer, so a few dozen per process is
+ * plenty; the map is bounded so a long-running host cannot grow it.
+ */
+const MAX_PROMPT_RECEIPTS = 256
 /** Cap on a single decoded base64 photo. */
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024
 /**
@@ -1759,6 +1766,13 @@ class MobileSync {
      */
     this.pairAttempts = new Map()
     /**
+     * Recent prompt ids, by `sessionId:clientMessageId`.
+     *
+     * See [routeSend]: the map exists so a retry after a lost answer is a no-op
+     * rather than a second message.
+     */
+    this.promptReceipts = new Map()
+    /**
      * Approvals waiting for a phone answer, by the id handed to the client.
      *
      * Deliberately in memory and never persisted: an approval belongs to one
@@ -3420,6 +3434,16 @@ class MobileSync {
     if (content.length === 0) {
       throw new HttpError(400, 'invalid-request', 'a message needs non-whitespace text, at least one image, or at least one file')
     }
+    // A phone that sends while the link is flapping cannot tell "accepted, answer
+    // lost" from "never arrived", and a retry without a key appends the message
+    // twice. The client's own id makes the second attempt a no-op — in memory and
+    // bounded, because this protects a retry, not a night's history.
+    const clientMessageId = typeof body.clientMessageId === 'string' ? body.clientMessageId.trim().slice(0, 80) : ''
+    const receiptKey = clientMessageId.length > 0 ? `${sessionId}:${clientMessageId}` : null
+    if (receiptKey !== null && this.promptReceipts.has(receiptKey)) {
+      sendJson(res, 200, { accepted: true, duplicate: true })
+      return
+    }
     // `prompt` declares a trailing AbortSignal that the RPC gateway normally
     // injects; calling the service directly means supplying it ourselves.
     await controller.prompt(
@@ -3431,7 +3455,14 @@ class MobileSync {
       },
       this.signalFor(req),
     )
-    sendJson(res, 202, { accepted: true })
+    if (receiptKey !== null) {
+      this.promptReceipts.set(receiptKey, Date.now())
+      while (this.promptReceipts.size > MAX_PROMPT_RECEIPTS) {
+        const oldest = this.promptReceipts.keys().next().value
+        this.promptReceipts.delete(oldest)
+      }
+    }
+    sendJson(res, 202, { accepted: true, duplicate: false })
   }
 
   /**

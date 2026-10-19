@@ -47,6 +47,7 @@ import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -271,6 +272,7 @@ fun ChatScreen(viewModel: AppViewModel) {
                 onPickFile = { filePicker.launch(arrayOf("*/*")) },
                 running = viewModel.running,
                 sending = viewModel.sending,
+                queued = viewModel.queuedFor(sessionId),
                 modelLabel = viewModel.currentModel?.model,
                 onPickModel = { viewModel.openModelPicker() },
                 permission = viewModel.permissionFor(sessionId),
@@ -966,6 +968,7 @@ private fun AttachmentChip(label: String, uploading: Boolean = false, onRemove: 
  * @param onPickFile opens the system file picker.
  * @param running whether the session currently has a turn in flight.
  * @param sending whether a send is already in flight.
+ * @param queued messages waiting for the link to come back.
  * @param modelLabel the current model's name, or null when unknown.
  * @param onPickModel opens the model picker.
  * @param permission the access preset in force, or null when the host reported none.
@@ -986,6 +989,7 @@ private fun Composer(
     onPickFile: () -> Unit,
     running: Boolean,
     sending: Boolean,
+    queued: List<QueuedMessage>,
     modelLabel: String?,
     onPickModel: () -> Unit,
     permission: PermissionOption?,
@@ -1011,6 +1015,38 @@ private fun Composer(
             .imePadding()
             .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 10.dp),
     ) {
+        // A message that could not leave because the link was down is still the
+        // reader's: it waits here, with the reason, until a poll succeeds.
+        if (queued.isNotEmpty()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Schedule,
+                    contentDescription = null,
+                    tint = palette.warningText,
+                    modifier = Modifier.size(14.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = pluralStringResource(R.plurals.chat_outbox_pending, queued.size, queued.size),
+                    style = HarnessType.caption,
+                    color = palette.warningText,
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.chat_outbox_note),
+                    style = HarnessType.caption,
+                    color = palette.textTertiary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+
         // The queue-or-steer choice only matters when there is something to send,
         // so it appears with the message instead of occupying fifty points above
         // every running turn's composer.

@@ -22,6 +22,7 @@ error_file_uploading	Un file è ancora in caricamento: aspetta che finisca.	A fi
 error_writer_held	Il PC sta scrivendo in questa chat. Chiudila sul desktop, oppure scrivi in un\'altra sessione.	The PC is writing in this chat. Close it on the desktop, or write in another session.
 error_agent_busy	L\'agente è occupato: riprova tra un istante.	The agent is busy: try again in a moment.
 error_send_failed	invio non riuscito	the message was not sent
+error_offline_queued	PC non raggiungibile: il messaggio è in coda e parte appena risponde.	PC unreachable: the message is queued and goes out as soon as it answers.
 error_too_many_photos	Massimo %1$d foto per messaggio	At most %1$d photos per message
 error_too_many_files	Massimo %1$d file per messaggio	At most %1$d files per message
 error_file_too_large	Il file è troppo grande per il PC: il massimo è 32 MB.	The file is too large for the PC: the limit is 32 MB.

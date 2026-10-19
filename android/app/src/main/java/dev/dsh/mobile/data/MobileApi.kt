@@ -369,6 +369,8 @@ class MobileApi(
      * @param images ordered base64 photos with their media types.
      * @param files files already staged on the host, named by their receipts.
      * @param steer true to steer the running turn instead of queueing.
+     * @param clientMessageId an id this client mints, so a retry after a lost answer
+     *   is a no-op on the host instead of a second message.
      */
     suspend fun send(
         sessionId: String,
@@ -376,10 +378,12 @@ class MobileApi(
         images: List<OutgoingImage> = emptyList(),
         files: List<OutgoingFile> = emptyList(),
         steer: Boolean = false,
+        clientMessageId: String? = null,
     ) {
         val payload = buildJsonObject {
             if (text.isNotBlank()) put("text", text)
             if (steer) put("mode", "steer")
+            if (clientMessageId != null) put("clientMessageId", clientMessageId)
             if (images.isNotEmpty()) {
                 put(
                     "images",

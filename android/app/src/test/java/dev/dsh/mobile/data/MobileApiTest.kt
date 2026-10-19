@@ -414,6 +414,18 @@ class MobileApiTest {
     }
 
     @Test
+    fun `send carries the client id only when a retry has to be recognised`() = runBlocking {
+        stub("/mobile/sessions/session-aaaa/messages", 202, """{"accepted":true}""")
+        val api = MobileApi(baseUrl, "tok-abc")
+
+        api.send(sessionId = "session-aaaa", text = "primo", clientMessageId = "cm-1")
+        assertTrue("the key travels so the host can answer a repeat", lastRequest().body.contains("\"clientMessageId\":\"cm-1\""))
+
+        api.send(sessionId = "session-aaaa", text = "secondo")
+        assertTrue("a normal send does not invent one", !lastRequest().body.contains("clientMessageId"))
+    }
+
+    @Test
     fun `api errors are decoded into ApiException with their code`() = runBlocking {
         stub(
             "/mobile/sessions/missing/messages",

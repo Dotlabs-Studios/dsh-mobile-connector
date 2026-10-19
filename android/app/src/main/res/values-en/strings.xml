@@ -46,6 +46,11 @@
     <string name="chat_model_fallback">model</string>
     <string name="chat_new_elsewhere">New chat in another folder</string>
     <string name="chat_notice_event">event</string>
+    <string name="chat_outbox_note">They go out as soon as the PC answers</string>
+    <plurals name="chat_outbox_pending">
+        <item quantity="one">%1$d message queued</item>
+        <item quantity="other">%1$d messages queued</item>
+    </plurals>
     <string name="chat_queue_behind_turn">Queue behind the turn</string>
     <string name="chat_reasoning">Reasoning</string>
     <string name="chat_remove">Remove</string>
@@ -153,6 +158,7 @@
     <string name="error_no_host">no host connected</string>
     <string name="error_not_text">It is not a text file, so there is nothing to read here.</string>
     <string name="error_nowhere">no address</string>
+    <string name="error_offline_queued">PC unreachable: the message is queued and goes out as soon as it answers.</string>
     <string name="error_pairing_expired">The code expired: restart DeepSeek Harness to generate a new one.</string>
     <string name="error_pairing_failed">Pairing failed.</string>
     <string name="error_pairing_rate_limited">Too many attempts from this address: wait a minute and try again.</string>
