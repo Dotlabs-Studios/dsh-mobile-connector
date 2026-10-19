@@ -27,6 +27,10 @@
 - **Settings → Diagnostics answers "is the PC there, and is it new enough".** One read of `/mobile/health` shows the app
   version, the plugin version with the wire `apiVersion`, the address, the measured round-trip, the uptime and both
   pending counts, with a copy button for the report. An older host that has no such route is named as one.
+- **The wire types declare themselves immutable.** `Entry`, `Block`, `SessionSummary`, `Workspace` and the five
+  transcript row types carry `@Immutable`, which is what stops Compose from treating every transcript row as unstable and
+  recomposing the list on each poll. The lists they hold are replaced rather than mutated, which is the promise the
+  annotation makes.
 - **The problem banner offers Retry.** A link that may simply have come back is one tap from a fresh read instead of up
   to a minute of backoff; an expired token keeps the Reconnect action it needs instead.
 - **A message composed while the link is down waits instead of dying.** A transport failure moves it to a small in-memory  outbox with the reason shown above the composer; the next poll that succeeds sends it. The sender mints a

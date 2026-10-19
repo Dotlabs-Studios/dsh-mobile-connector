@@ -1,5 +1,6 @@
 package dev.dsh.mobile.data
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -21,6 +22,7 @@ sealed interface TranscriptItem {
     val seq: Int
 
     /** One message bubble. */
+    @Immutable
     data class Message(val entry: Entry) : TranscriptItem {
         override val seq: Int get() = entry.seq
     }
@@ -31,6 +33,7 @@ sealed interface TranscriptItem {
      * @property call the `tool-call` event.
      * @property result the matching `tool-result`, or null while it is running.
      */
+    @Immutable
     data class ToolStep(val call: Entry, val result: Entry?) : TranscriptItem {
         override val seq: Int get() = call.seq
 
@@ -96,6 +99,7 @@ sealed interface TranscriptItem {
      * @property steps the calls, in order; at least two, because a group of one
      *   would be a header with nothing to hide.
      */
+    @Immutable
     data class ToolGroup(val steps: List<ToolStep>) : TranscriptItem {
         override val seq: Int get() = steps.first().seq
 
@@ -124,6 +128,7 @@ sealed interface TranscriptItem {
      * Currently only interruptions, which the harness records as their own
      * event rather than as message text.
      */
+    @Immutable
     data class Notice(val entry: Entry) : TranscriptItem {
         override val seq: Int get() = entry.seq
     }
@@ -138,6 +143,7 @@ sealed interface TranscriptItem {
      * `present` card stays where it is: a tool was invoked, and hiding that would
      * be the transcript editing itself.
      */
+    @Immutable
     data class Deliverable(val entry: Entry) : TranscriptItem {
         override val seq: Int get() = entry.seq
 
@@ -155,6 +161,7 @@ sealed interface TranscriptItem {
      * @property asked the event that opened the request.
      * @property decided the event that closed it, or null while it is open.
      */
+    @Immutable
     data class Approval(val asked: Entry, val decided: Entry?) : TranscriptItem {
         override val seq: Int get() = asked.seq
 

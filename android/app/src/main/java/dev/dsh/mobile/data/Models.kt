@@ -1,9 +1,11 @@
 package dev.dsh.mobile.data
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /** One paired harness session as the mobile API reports it. */
+@Immutable
 @Serializable
 data class SessionSummary(
     val id: String,
@@ -40,6 +42,7 @@ data class SessionSummary(
 }
 
 /** One PC project as the harness registry reports it. */
+@Immutable
 @Serializable
 data class Workspace(
     @SerialName("workspaceId") val workspaceId: String,
@@ -176,6 +179,7 @@ data class DirListing(
 )
 
 /** One content block inside a message or tool result. */
+@Immutable
 @Serializable
 data class Block(
     val type: String,
@@ -197,6 +201,7 @@ internal fun lastSegment(path: String?): String? = path
     ?.takeIf { it.isNotBlank() }
 
 /** One ordered session-log entry rendered for the chat transcript. */
+@Immutable
 @Serializable
 data class Entry(
     val kind: String,
