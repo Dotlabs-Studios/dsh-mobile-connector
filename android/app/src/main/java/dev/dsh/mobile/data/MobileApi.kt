@@ -278,9 +278,16 @@ class MobileApi(
      *
      * @param sessionId the addressed session.
      * @param beforeSeq exclusive upper bound, or null for the newest page.
+     * @param afterSeq exclusive lower bound: only entries newer than it, which is
+     *   what makes a poll with nothing new cost an empty answer.
      * @param limit maximum entries to return.
      */
-    suspend fun messages(sessionId: String, beforeSeq: Int? = null, limit: Int = 60): MessagePage {
+    suspend fun messages(
+        sessionId: String,
+        beforeSeq: Int? = null,
+        afterSeq: Int? = null,
+        limit: Int = 60,
+    ): MessagePage {
         val params = buildString {
             append("/mobile/sessions/")
             append(java.net.URLEncoder.encode(sessionId, "UTF-8"))
@@ -289,6 +296,10 @@ class MobileApi(
             if (beforeSeq != null) {
                 append("&beforeSeq=")
                 append(beforeSeq)
+            }
+            if (afterSeq != null) {
+                append("&afterSeq=")
+                append(afterSeq)
             }
         }
         return call(params)

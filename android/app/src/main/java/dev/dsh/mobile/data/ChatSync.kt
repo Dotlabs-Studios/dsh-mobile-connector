@@ -63,6 +63,17 @@ class ChatSync(private val source: ChatSource) {
     }
 
     /**
+     * Record that the host has nothing before the held window.
+     *
+     * Needed because "load older" answered an empty page and the view model's own
+     * flag was then overwritten by the next [refresh]'s copy of this one, which is
+     * what made a missing page reappear as a button at every poll.
+     */
+    fun markNoOlder() {
+        hasOlder = false
+    }
+
+    /**
      * Replace the transcript with the newest page.
      *
      * @param sessionId the session to read.
@@ -84,27 +95,40 @@ class ChatSync(private val source: ChatSource) {
     /**
      * Pick up whatever was appended since the held window.
      *
-     * The rule is deliberately "append what is new, never replace". A harness
-     * session log only grows: a compaction shadows earlier nodes by appending a
-     * replacement event, and it never deletes or renumbers what came before. So
-     * every held sequence stays valid, and appending cannot splice two
-     * incompatible histories together.
+     * Asks the host only for entries newer than [newestSeq] — the route's
+     * `afterSeq` — so a poll that finds nothing new downloads no entries at all
+     * instead of the newest sixty it already holds.
      *
-     * An earlier version replaced the window whenever a page's oldest position
-     * had moved past the held one. That is exactly what a slid-forward tail
-     * page looks like, and the effect was to throw away history the user had
-     * paged back through. Append-only is both simpler and lossless.
+     * The append rule stays "append what is new, never replace": a harness log
+     * only grows, so every held sequence stays valid. The one case that needs more
+     * is a gap — if the first entry returned is further ahead than `newestSeq + 1`,
+     * events were appended while the app was away and fell out of the host's
+     * newest window. Appending would splice a hole into the transcript and nothing
+     * would ever fill it, because paging backwards starts *after* the hole. Then
+     * the newest page is read in full and the window is replaced: losing pages the
+     * reader had scrolled back through is bad, a transcript that quietly skips a
+     * turn is worse.
      *
      * @param sessionId the session to read.
      * @param limit how many entries to request.
      */
     suspend fun refresh(sessionId: String, limit: Int = 60) {
         try {
-            val page = source.messages(sessionId, beforeSeq = null, limit = limit)
+            if (entries.isEmpty()) {
+                loadNewest(sessionId, limit)
+                return
+            }
+            val page = source.messages(sessionId, afterSeq = newestSeq, limit = limit)
             val fresh = page.entries.filter { it.seq > newestSeq }
 
             if (fresh.isEmpty()) {
+                if (page.hasMore) hasOlder = true
                 lastError = null
+                return
+            }
+
+            if (fresh.first().seq > newestSeq + 1) {
+                loadNewest(sessionId, maxOf(limit, GAP_RECOVERY_LIMIT))
                 return
             }
 
@@ -117,6 +141,17 @@ class ChatSync(private val source: ChatSource) {
             lastError = error
         }
     }
+
+    private companion object {
+        /**
+         * Page size used to recover from a gap.
+         *
+         * Generous because the read happens once, at the moment a hole is
+         * detected, and a hole is usually a burst of tool calls rather than one
+         * message.
+         */
+        const val GAP_RECOVERY_LIMIT = 200
+    }
 }
 
 /** The read side of the harness the chat sync depends on. */
@@ -126,9 +161,15 @@ interface ChatSource {
      *
      * @param sessionId the addressed session.
      * @param beforeSeq exclusive upper bound, or null for the newest page.
+     * @param afterSeq exclusive lower bound, so a poll can ask only for what is new.
      * @param limit maximum entries to return.
      */
-    suspend fun messages(sessionId: String, beforeSeq: Int? = null, limit: Int = 60): MessagePage
+    suspend fun messages(
+        sessionId: String,
+        beforeSeq: Int? = null,
+        afterSeq: Int? = null,
+        limit: Int = 60,
+    ): MessagePage
 }
 
 /**

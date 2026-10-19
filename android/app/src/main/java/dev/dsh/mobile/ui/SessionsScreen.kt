@@ -74,8 +74,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import dev.dsh.mobile.R
 import dev.dsh.mobile.data.ApprovalRequest
 import dev.dsh.mobile.data.BrowseIntent
@@ -90,6 +88,7 @@ import dev.dsh.mobile.data.browseParent
 import dev.dsh.mobile.data.lastSegment
 import dev.dsh.mobile.data.sectionKey
 import dev.dsh.mobile.data.visibleChats
+import kotlinx.coroutines.delay
 import java.text.DateFormat
 import java.util.Date
 
@@ -107,12 +106,22 @@ import java.util.Date
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionsScreen(viewModel: AppViewModel) {
-    // A phone app that keeps polling in the background spends battery and data
-    // on a list nobody is looking at. Polling follows the foreground instead.
-    LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.resumePolling() }
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pausePolling() }
+    // Polling is owned by [AppViewModel.onForeground], not by this screen: with a
+    // chat open this composable is not on screen, so a stop-effect here never ran
+    // and the list loop kept polling behind a chat that had already paused.
 
     val palette = LocalHarness.current
+
+    // Search is debounced: the field used to fire a full list request — four of
+    // them, before the pulse route — on every keystroke, and a fast typist could
+    // watch older results land on top of newer ones.
+    var typedFilter by remember { mutableStateOf(viewModel.sessionFilter) }
+    LaunchedEffect(typedFilter) {
+        if (typedFilter == viewModel.sessionFilter) return@LaunchedEffect
+        delay(SEARCH_DEBOUNCE_MS)
+        viewModel.sessionFilter = typedFilter
+        viewModel.refreshSessions()
+    }
 
     Scaffold(
         containerColor = palette.background,
@@ -147,11 +156,8 @@ fun SessionsScreen(viewModel: AppViewModel) {
                 .fillMaxSize(),
         ) {
             HarnessTextField(
-                value = viewModel.sessionFilter,
-                onValueChange = {
-                    viewModel.sessionFilter = it
-                    viewModel.refreshSessions()
-                },
+                value = typedFilter,
+                onValueChange = { typedFilter = it },
                 placeholder = stringResource(R.string.session_search),
                 leadingIcon = Icons.Rounded.Search,
                 modifier = Modifier
@@ -1243,3 +1249,6 @@ private fun formatTime(epochMillis: Long): String {
     val formatter = if (sameDay) DateFormat.getTimeInstance(DateFormat.SHORT) else DateFormat.getDateInstance(DateFormat.SHORT)
     return formatter.format(Date(epochMillis))
 }
+
+/** How long the search field waits after the last keystroke before asking the host. */
+private const val SEARCH_DEBOUNCE_MS = 300L

@@ -73,8 +73,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import dev.dsh.mobile.R
 import dev.dsh.mobile.data.Block
 import dev.dsh.mobile.data.Entry
@@ -104,10 +102,9 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(viewModel: AppViewModel) {
-    // The transcript polls faster than the list, so it is paused the moment the
-    // app leaves the foreground and reloaded on return.
-    LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.resumeChatPolling() }
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pauseChatPolling() }
+    // Polling is owned by [AppViewModel.onForeground]: the list and the chat loops
+    // share one visibility flag, because a per-screen stop-effect only ever paused
+    // the screen that happened to be composed.
 
     val palette = LocalHarness.current
     val context = LocalContext.current
@@ -115,7 +112,6 @@ fun ChatScreen(viewModel: AppViewModel) {
     val sessionId = session?.id
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    var draft by remember { mutableStateOf("") }
     var lightbox by remember { mutableStateOf<ImageRef?>(null) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -219,8 +215,8 @@ fun ChatScreen(viewModel: AppViewModel) {
         },
         bottomBar = {
             Composer(
-                draft = draft,
-                onDraftChange = { draft = it },
+                draft = viewModel.draft,
+                onDraftChange = { viewModel.draft = it },
                 staged = viewModel.stagedPhotos,
                 onUnstage = { index -> viewModel.unstagePhoto(index) },
                 onPickPhoto = { picker.launch("image/*") },
@@ -229,6 +225,7 @@ fun ChatScreen(viewModel: AppViewModel) {
                 onUnstageFile = { index -> viewModel.unstageFile(index) },
                 onPickFile = { filePicker.launch(arrayOf("*/*")) },
                 running = viewModel.running,
+                sending = viewModel.sending,
                 modelLabel = viewModel.currentModel?.model,
                 onPickModel = { viewModel.openModelPicker() },
                 permission = viewModel.permissionFor(sessionId),
@@ -236,9 +233,9 @@ fun ChatScreen(viewModel: AppViewModel) {
                 onPickPermission = { viewModel.openPermissions() },
                 onSend = { steer ->
                     // Photos ride along inline so the harness admits them as
-                    // real image content for the model.
-                    viewModel.sendStaged(draft, steer)
-                    draft = ""
+                    // real image content for the model. The draft is cleared by
+                    // the view model once the host has accepted the message.
+                    viewModel.sendStaged(steer)
                 },
             )
         },
@@ -821,6 +818,7 @@ private fun AttachmentChip(label: String, uploading: Boolean = false, onRemove: 
  * @param onUnstageFile removes one staged file by index.
  * @param onPickFile opens the system file picker.
  * @param running whether the session currently has a turn in flight.
+ * @param sending whether a send is already in flight.
  * @param modelLabel the current model's name, or null when unknown.
  * @param onPickModel opens the model picker.
  * @param permission the access preset in force, or null when the host reported none.
@@ -840,6 +838,7 @@ private fun Composer(
     onUnstageFile: (Int) -> Unit,
     onPickFile: () -> Unit,
     running: Boolean,
+    sending: Boolean,
     modelLabel: String?,
     onPickModel: () -> Unit,
     permission: PermissionOption?,
@@ -851,8 +850,11 @@ private fun Composer(
     var steer by remember { mutableStateOf(false) }
     // A message cannot leave while a file is still travelling: what it would
     // carry is a receipt, and a receipt that does not exist yet is not a send
-    // that can be retried — it is one that would silently lose the file.
-    val sendable = (draft.isNotBlank() || staged.isNotEmpty() || stagedFiles.isNotEmpty()) && uploadingFiles.isEmpty()
+    // that can be retried — it is one that would silently lose the file. Nor
+    // while a send is already in flight: a second tap would post the same spent
+    // receipts again.
+    val sendable = (draft.isNotBlank() || staged.isNotEmpty() || stagedFiles.isNotEmpty()) &&
+        uploadingFiles.isEmpty() && !sending
 
     Column(
         Modifier
@@ -862,7 +864,10 @@ private fun Composer(
             .imePadding()
             .padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 10.dp),
     ) {
-        if (running) {
+        // The queue-or-steer choice only matters when there is something to send,
+        // so it appears with the message instead of occupying fifty points above
+        // every running turn's composer.
+        if (running && (draft.isNotBlank() || staged.isNotEmpty() || stagedFiles.isNotEmpty())) {
             // What a message does while a turn is in flight is a real choice,
             // so it is shown as one: both answers visible, one selected.
             SegmentedControl(

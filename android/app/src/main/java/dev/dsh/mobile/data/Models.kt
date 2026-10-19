@@ -194,6 +194,8 @@ data class MessagePage(
     @SerialName("sessionId") val sessionId: String,
     val cursor: Int = -1,
     val hasMore: Boolean = false,
+    /** Where older history continues, present even when this page is empty. */
+    val nextBeforeSeq: Int? = null,
     val entries: List<Entry> = emptyList(),
 )
 

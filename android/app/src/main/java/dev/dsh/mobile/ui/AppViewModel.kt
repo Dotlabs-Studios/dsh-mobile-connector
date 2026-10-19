@@ -1,6 +1,7 @@
 package dev.dsh.mobile.ui
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -50,6 +51,7 @@ import dev.dsh.mobile.data.SessionSummary
 import dev.dsh.mobile.data.Workspace
 import dev.dsh.mobile.data.applyLanguage
 import dev.dsh.mobile.data.normalizeHost
+import dev.dsh.mobile.data.withLanguage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -143,6 +145,22 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var hostInput by mutableStateOf(store.host ?: "")
     var codeInput by mutableStateOf("")
     var deviceInput by mutableStateOf(store.deviceName)
+
+    /**
+     * The message being composed.
+     *
+     * Held here rather than in the screen because the send is asynchronous: the
+     * composer used to clear its own copy the moment the tap happened, so a
+     * refusal the host answered a second later (`writer-held`, a dropped link)
+     * left the user with an empty box and a message that never arrived. The text
+     * is cleared only once the host has accepted it, and it survives rotation
+     * while it is being composed.
+     */
+    var draft by mutableStateOf("")
+
+    /** Whether a send is in flight, so the composer can refuse a second tap. */
+    var sending by mutableStateOf(false)
+        private set
 
     var pairing by mutableStateOf(false)
         private set
@@ -497,9 +515,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
      * @return a source that refuses with a transport failure when unpaired.
      */
     private fun sourceOf(client: MobileApi?): ChatSource = object : ChatSource {
-        override suspend fun messages(sessionId: String, beforeSeq: Int?, limit: Int): MessagePage {
+        override suspend fun messages(
+            sessionId: String,
+            beforeSeq: Int?,
+            afterSeq: Int?,
+            limit: Int,
+        ): MessagePage {
             val bound = client ?: throw ApiException("transport", "no host connected")
-            return bound.messages(sessionId, beforeSeq = beforeSeq, limit = limit)
+            return bound.messages(sessionId, beforeSeq = beforeSeq, afterSeq = afterSeq, limit = limit)
         }
     }
 
@@ -724,11 +747,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun resumeChatPolling() {
         val session = openSession ?: return
-        if (api == null || chatJob != null) return
+        if (api == null || chatJob != null || !foreground) return
         chatJob = viewModelScope.launch {
             loadNewest()
             while (isActive) {
-                delay(CHAT_POLL_MS)
+                delay(chatDelay())
                 refresh()
             }
         }
@@ -1151,15 +1174,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Send the open session's staged photos, staged files, and composed text.
      *
-     * @param text the composed message text.
+     * The text lives in [draft] and is cleared only once the host has accepted the
+     * message: the composer used to clear its own copy the instant the tap
+     * happened, so a refusal answered a second later — `writer-held`, a link that
+     * dropped — cost the user every word they had just written. [sending] keeps a
+     * second tap from re-posting receipts the first tap already spent.
+     *
      * @param steer true to steer the running turn instead of queueing.
      */
-    fun sendStaged(text: String, steer: Boolean) {
+    fun sendStaged(steer: Boolean) {
         val client = api ?: return
         val session = openSession ?: return
+        if (sending) {
+            Log.i(TAG, "send ignored: one is already in flight")
+            return
+        }
         val photos = stagedPhotos.toList()
         val files = stagedFiles.toList()
-        val body = text.trim()
+        val body = draft.trim()
         if (body.isEmpty() && photos.isEmpty() && files.isEmpty()) {
             Log.i(TAG, "send ignored: nothing to send")
             return
@@ -1168,11 +1200,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             problem = ConnectionProblem("file-uploading", TextRef.of(R.string.error_file_uploading))
             return
         }
+        sending = true
         Log.i(TAG, "sending textChars=${body.length} photos=${photos.size} files=${files.size} steer=$steer session=${session.id}")
         viewModelScope.launch {
             try {
                 client.send(session.id, body, images = photos, files = files, steer = steer)
                 Log.i(TAG, "send accepted by host")
+                // The host has it: only now may the composer forget it.
+                draft = ""
                 stagedPhotos.clear()
                 stagedFiles.clear()
                 delay(250)
@@ -1194,6 +1229,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             } catch (error: Exception) {
                 Log.w(TAG, "send failed with an unexpected error", error)
                 problem = ConnectionProblem("internal", TextRef.of(error) ?: TextRef.of(R.string.error_send_failed))
+            } finally {
+                sending = false
             }
         }
     }
@@ -1327,7 +1364,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         loadingOlder = true
         viewModelScope.launch {
             try {
-                val page = client.messages(session.id, beforeSeq = before, limit = 40)
+                // The host answers `nextBeforeSeq` even for an empty page, because
+                // the newest window can be all bookkeeping: without a cursor from
+                // it, the history before that window would be unreachable for good.
+                var cursor = before
+                var page = client.messages(session.id, beforeSeq = cursor, limit = 40)
+                if (page.entries.isEmpty() && page.hasMore && page.nextBeforeSeq != null && page.nextBeforeSeq != cursor) {
+                    cursor = page.nextBeforeSeq
+                    page = client.messages(session.id, beforeSeq = cursor, limit = 40)
+                }
                 val older = page.entries
                 if (older.isNotEmpty()) {
                     sync.replaceWindow(
@@ -1337,7 +1382,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     )
                     applySync()
                 } else {
-                    hasOlder = false
+                    // Tell the state machine, not just the visible copy: the next
+                    // poll writes this value back from it, which is why a missing
+                    // page used to reappear as a button every few seconds.
+                    sync.markNoOlder()
+                    applySync()
                 }
             } catch (error: ApiException) {
                 problem = ConnectionProblem(error.code, describe(error))
@@ -1362,7 +1411,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private fun describe(error: ApiException): TextRef = when (error.code) {
         "transport" -> TextRef.of(
             R.string.error_connection,
-            store.host ?: getApplication<Application>().getString(R.string.error_nowhere),
+            store.host ?: localized().getString(R.string.error_nowhere),
         )
         "unauthorized" -> TextRef.of(R.string.error_unauthorized)
         else -> TextRef.of(error) ?: TextRef.of(R.string.error_no_host)
@@ -2047,22 +2096,52 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Begin polling the session list for as long as the app is open. */
+    /** Begin polling the session list for as long as the app is on screen. */
     private fun startSessionPolling() {
         listJob?.cancel()
         listJob = viewModelScope.launch {
             while (isActive) {
                 loadSessions()
-                delay(LIST_POLL_MS)
+                delay(listDelay())
             }
         }
     }
 
     /**
+     * Whether the app is on screen.
+     *
+     * Polling follows this rather than each screen's own lifecycle. With a chat
+     * open the list screen is not composed, so its stop-effect never fired — the
+     * list loop kept waking the radio every four seconds behind a chat that had
+     * already paused its own. One owner for both loops is the only version with
+     * no hole in it.
+     */
+    private var foreground = true
+
+    /** Consecutive failed list polls, for the backoff. */
+    private var listFailures = 0
+
+    /** Consecutive failed chat polls, for the backoff. */
+    private var chatFailures = 0
+
+    /** Called when the app comes to the screen: start what should be running. */
+    fun onForeground() {
+        foreground = true
+        resumePolling()
+        if (openSession != null) resumeChatPolling()
+    }
+
+    /** Called when the app leaves the screen: stop both loops. */
+    fun onBackground() {
+        foreground = false
+        pausePolling()
+        pauseChatPolling()
+    }
+
+    /**
      * Stop polling the session list.
      *
-     * Called when the app leaves the foreground. Without this the app keeps
-     * waking the radio every four seconds while sitting in the background,
+     * Without this the app keeps waking the radio while sitting in the background,
      * spending battery and data on a list nobody is looking at.
      */
     fun pausePolling() {
@@ -2071,13 +2150,40 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Restart polling, if a pairing exists.
+     * Restart polling, if a pairing exists and the app is visible.
      *
-     * Safe to call repeatedly: the chat job is owned by the chat screen, so
-     * this only concerns the list.
+     * Safe to call repeatedly: the chat job is owned by the chat screen's own
+     * open/close, so this only concerns the list.
      */
     fun resumePolling() {
-        if (api != null && listJob == null) startSessionPolling()
+        if (api != null && foreground && listJob == null) startSessionPolling()
+    }
+
+    /**
+     * How long to wait before the next list poll.
+     *
+     * Four seconds while a turn is running — the interval at which a dot or an
+     * approval appears to move — and fifteen when nothing is, because an idle
+     * harness answers the same list every time and the phone pays for it. A
+     * failing poll backs off towards a minute instead of hammering a link that is
+     * down.
+     */
+    private fun listDelay(): Long = when {
+        listFailures > 0 -> minOf(FAILURE_CAP_MS, LIST_POLL_MS shl minOf(listFailures, 4))
+        sessions.any { it.running } -> LIST_POLL_MS
+        else -> LIST_IDLE_MS
+    }
+
+    /**
+     * How long to wait before the next chat poll.
+     *
+     * Same shape as [listDelay]: fast while the agent is working, slower when the
+     * turn is over, and backing off on failure.
+     */
+    private fun chatDelay(): Long = when {
+        chatFailures > 0 -> minOf(FAILURE_CAP_MS, CHAT_POLL_MS shl minOf(chatFailures, 4))
+        running -> CHAT_POLL_MS
+        else -> CHAT_IDLE_MS
     }
 
     /** Read the session list once, tolerating a transient failure. */
@@ -2087,7 +2193,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         try {
             sessions = client.sessions(includeSubagents = includeSubagents, query = sessionFilter)
             if (sessions.any { it.running }) problem = null
+            listFailures = 0
         } catch (error: ApiException) {
+            listFailures += 1
             if (error.status == 401) {
                 problem = ConnectionProblem(error.code, TextRef.of(R.string.error_unauthorized))
             } else if (sessions.isEmpty()) {
@@ -2155,6 +2263,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         sync.refresh(session.id)
         applySync()
         running = sessions.firstOrNull { it.id == session.id }?.running ?: running
+        // Feeds the poll backoff: a chat whose host is unreachable must be retried
+        // less and less often, not twenty-four times a minute.
+        if (sync.lastError == null) chatFailures = 0 else chatFailures += 1
         // The chat poll is faster than the list poll, so it is also the faster
         // way to notice an approval or a question raised mid-turn.
         loadApprovals()
@@ -2182,16 +2293,35 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
      * A chat this app has just created lives on the host a moment before it
      * appears in the list, and the row has to say something: the app's own word
      * for it is a resource, because it is a word a person reads.
+     *
+     * The context is the *localized* one rather than the application's: only the
+     * activity is wrapped with the chosen locale (see `attachBaseContext`), so
+     * `getApplication().getString` answered in the phone's language no matter what
+     * the app had been told to speak — which is how an Italian list grew a "No
+     * project" heading.
      */
-    private fun blankSessionTitle(): String = getApplication<Application>().getString(R.string.session_untitled)
+    private fun blankSessionTitle(): String = localized().getString(R.string.session_untitled)
 
     /** The heading the chats no project owns are grouped under. */
-    private fun blankSectionTitle(): String = getApplication<Application>().getString(R.string.session_ungrouped)
+    private fun blankSectionTitle(): String = localized().getString(R.string.session_ungrouped)
+
+    /**
+     * The application context carrying the language the user chose.
+     *
+     * [withLanguage] returns the context unchanged when the choice is `System`,
+     * so this costs a configuration copy only for the two explicit languages.
+     */
+    private fun localized(): Context = getApplication<Application>().withLanguage(store.language)
 
     private companion object {
         const val TAG = "DshMobile"
         const val LIST_POLL_MS = 4_000L
+        const val LIST_IDLE_MS = 15_000L
         const val CHAT_POLL_MS = 2_500L
+        const val CHAT_IDLE_MS = 10_000L
+
+        /** Ceiling for the failure backoff: a minute is enough to stop hammering. */
+        const val FAILURE_CAP_MS = 60_000L
 
         /**
          * The longest turn span the indicator is willing to print.
@@ -2206,8 +2336,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
         /** A source for an unpaired app; every read fails as a transport loss. */
         val noSource: ChatSource = object : ChatSource {
-            override suspend fun messages(sessionId: String, beforeSeq: Int?, limit: Int): MessagePage =
-                throw ApiException("transport", "no host connected")
+            override suspend fun messages(
+                sessionId: String,
+                beforeSeq: Int?,
+                afterSeq: Int?,
+                limit: Int,
+            ): MessagePage = throw ApiException("transport", "no host connected")
         }
     }
 }

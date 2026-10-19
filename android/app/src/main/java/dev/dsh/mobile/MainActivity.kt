@@ -15,6 +15,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.dsh.mobile.data.languageOf
 import dev.dsh.mobile.data.withLanguage
@@ -76,6 +78,11 @@ class MainActivity : ComponentActivity() {
             // moment later would flash the system palette on every launch, which
             // is exactly what someone who chose "Scuro" would notice most.
             val viewModel: AppViewModel = viewModel()
+            // One owner for both polling loops, and it is this activity: a
+            // per-screen stop-effect only ever paused the screen that happened to
+            // be composed, so the list kept polling behind an open chat.
+            LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.onForeground() }
+            LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onBackground() }
             val dark = viewModel.themeMode.isDark(isSystemInDarkTheme())
             // The bars' icons follow the app's theme rather than the phone's:
             // someone who chose "Chiaro" on a dark phone would otherwise get

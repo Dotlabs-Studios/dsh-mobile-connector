@@ -33,9 +33,15 @@ class ChatSyncTest {
             private set
         var lastBeforeSeq: Int? = null
             private set
+        var lastAfterSeq: Int? = null
+            private set
+        var lastLimit: Int? = null
+            private set
 
-        override suspend fun messages(sessionId: String, beforeSeq: Int?, limit: Int): MessagePage {
+        override suspend fun messages(sessionId: String, beforeSeq: Int?, afterSeq: Int?, limit: Int): MessagePage {
             lastBeforeSeq = beforeSeq
+            lastAfterSeq = afterSeq
+            lastLimit = limit
             return if (beforeSeq != null) {
                 if (pagingPages.isEmpty()) throw ApiException("transport", "no scripted paging page left")
                 pagingPages.removeAt(0).getOrThrow()
@@ -134,15 +140,38 @@ class ChatSyncTest {
     }
 
     @Test
-    fun `a slid-forward tail page appends instead of discarding history`() = runBlocking {
-        // The held window is the tail of a longer log; a later page shows only
-        // the newest fifty. Its oldest position has moved past the held one,
-        // which is what a growing log looks like, not a rewrite. Nothing may
-        // be dropped.
+    fun `refresh asks the host only for what is new`() = runBlocking {
         val source = ScriptedSource(
             mutableListOf(
                 Result.success(page(listOf(msg(1, "uno"), msg(2, "due")))),
-                Result.success(page(listOf(msg(9, "nove"), msg(10, "dieci")))),
+                Result.success(page(listOf(msg(3, "tre")))),
+            ),
+        )
+        val sync = ChatSync(source)
+
+        sync.loadNewest("session-1")
+        assertNull("a newest-page read carries no lower bound", source.lastAfterSeq)
+
+        sync.refresh("session-1")
+        assertEquals("a refresh starts after the newest held entry", 2, source.lastAfterSeq)
+
+        assertEquals(listOf("uno", "due", "tre"), texts(sync))
+    }
+
+    @Test
+    fun `a gap in the tail is recovered by replacing the window, never by splicing`() = runBlocking {
+        // The held window ends at 2, and the host's newest window now starts at 9:
+        // events 3..8 were appended while the app was away and fell out of the
+        // newest page. Appending them after 2 would leave a hole nothing can fill,
+        // because "load older" starts *below* the oldest held seq — under the hole.
+        // The window is therefore replaced with the newest page, which stays
+        // contiguous, and the missing range remains reachable by paging back.
+        val newest = page(listOf(msg(9, "nove"), msg(10, "dieci")), hasMore = true)
+        val source = ScriptedSource(
+            mutableListOf(
+                Result.success(page(listOf(msg(1, "uno"), msg(2, "due")))),
+                Result.success(newest),
+                Result.success(newest),
             ),
         )
         val sync = ChatSync(source)
@@ -150,8 +179,53 @@ class ChatSyncTest {
         sync.loadNewest("session-1")
         sync.refresh("session-1")
 
-        assertEquals(listOf("uno", "due", "nove", "dieci"), texts(sync))
+        assertEquals(listOf("nove", "dieci"), texts(sync))
         assertEquals(10, sync.newestSeq)
+        assertEquals(9, sync.oldestSeq)
+        assertTrue("older history is still reachable", sync.hasOlder)
+        assertEquals("the recovery read is the generous one", 200, source.lastLimit)
+    }
+
+    @Test
+    fun `markNoOlder sticks until a later page proves otherwise`() = runBlocking {
+        val source = ScriptedSource(
+            mutableListOf(
+                Result.success(page(listOf(msg(1, "uno")), hasMore = true)),
+                Result.success(page(emptyList(), hasMore = false)),
+            ),
+        )
+        val sync = ChatSync(source)
+
+        sync.loadNewest("session-1")
+        assertTrue(sync.hasOlder)
+
+        // What "load older" does when the host answers an empty page: the flag is
+        // cleared through the state machine, so the next refresh copies false.
+        sync.markNoOlder()
+        assertEquals(false, sync.hasOlder)
+
+        sync.refresh("session-1")
+        assertEquals(false, sync.hasOlder)
+    }
+
+    @Test
+    fun `a slid-forward tail page appends when it is contiguous with the window`() = runBlocking {
+        // The held window is the tail of a longer log; a later page shows only the
+        // newest few but starts exactly where the window ends. That is a growing
+        // log, not a rewrite, and nothing may be dropped.
+        val source = ScriptedSource(
+            mutableListOf(
+                Result.success(page(listOf(msg(1, "uno"), msg(2, "due")))),
+                Result.success(page(listOf(msg(3, "tre"), msg(4, "quattro")))),
+            ),
+        )
+        val sync = ChatSync(source)
+
+        sync.loadNewest("session-1")
+        sync.refresh("session-1")
+
+        assertEquals(listOf("uno", "due", "tre", "quattro"), texts(sync))
+        assertEquals(4, sync.newestSeq)
         assertEquals(1, sync.oldestSeq)
     }
 
