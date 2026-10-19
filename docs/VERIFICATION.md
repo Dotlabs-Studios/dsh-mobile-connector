@@ -76,9 +76,12 @@ other half of every scenario.
 - **R8/resource shrinking** is not enabled by default. The keep rules are in
   `android/app/proguard-rules.pro`, and `./gradlew assembleRelease -PenableR8=true`
   builds the shrink candidate — measured at **1.72 MB against 11.98 MB** on v0.3.0,
-  which is why it is worth finishing. Run the whole checklist above against *that*
-  APK before making it the default: a stripped serializer fails at the first decode,
-  not at build time.
+  which is why it is worth finishing. `python tools/dex-keep-check.py` already proves
+  the cheap half without a phone: every wire type, `$$serializer` and `KSerializer`
+  are still in the shrunk dex, so the keep rules are not too narrow at the class
+  level. What no static check can show is whether a decode *works*, which is what the
+  checklist below is for. Run it against *that* APK before making shrinking the
+  default.
 - **Two different PCs** (home and office) are not supported: the app holds one
   pairing, with as many addresses for it as the host reports.
 - **QR/mDNS pairing** does not exist yet; the address is typed once and the pairing

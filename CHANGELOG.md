@@ -152,6 +152,11 @@ turns the app from a reader into a remote control that can tell you when it need
 - 362 JVM tests, including the contract fixtures captured by the plugin suite and the new pure modules: image sizing,
   the watch feed, address failover, transcript search, message quoting and the unread map's codec.
 - `gradlew lintDebug` clean; generated strings in sync with the sixteen tables (369 resources).
+- **The shrink candidate is checked for the failure that needs no phone.** `tools/dex-keep-check.py` reads the shrunk
+  APK's dex and asserts that every wire type — `SessionSummary` through `PendingQuestion` — plus `$$serializer` and
+  `KSerializer` are still in the string table: if a keep rule were too narrow, R8 would have renamed or dropped them, and
+  that is the mistake a device run finds at the first decode. It cannot prove a decode works; it proves the machinery R8
+  would delete is still there.
 - **The poll backoff is one tested function.** Both loops asked the same question with different clocks; the arithmetic
   now lives in `pollDelay` with a cap and a saturating shift, and `PollBackoffTest` covers the healthy, doubling, capped
   and saturated cases — the last of which is what stops a long outage from shifting an interval into nonsense.

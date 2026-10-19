@@ -70,7 +70,7 @@ project can do until the harness grows the call.
 | Contract test | done | fixtures recorded by the plugin suite, decoded by the JVM | `ContractFixturesTest` |
 | Static analysis | done | `lintDebug` as a CI gate | lint run |
 | API reference cannot rot | done | citations name the file; `tools/docrefs.py --check` in CI | CI step |
-| R8 / resource shrinking | **partial** | rules written, `-PenableR8=true` builds 1.72 MB against 11.98 MB | measured; default off until the device checklist passes |
+| R8 / resource shrinking | **partial** | rules written; `-PenableR8=true` builds 1.72 MB against 11.98 MB; every wire type and its serializer machinery verified present in the shrunk dex (`tools/dex-keep-check.py`) | measured; default off until the device checklist passes |
 | Split the view model | **pending** | one 2 800-line class, six concerns | design in [ROADMAP.md](ROADMAP.md) |
 
 ## What the suites do not cover
