@@ -31,9 +31,10 @@ android {
         // already on the phone, and an installer that is asked to install the
         // same version twice is where "non me la dà come aggiornamento" comes
         // from. It moves with the feature, and the name beside it is the label a
-        // person reads.
-        versionCode = 3
-        versionName = "0.2.0"
+        // person reads. The name tracks the plugin's own version, so the two
+        // halves of the wire cannot disagree about which build they are.
+        versionCode = 4
+        versionName = "0.3.0"
     }
 
     // La riga qui sopra dice quali lingue servono; questa la esegue.

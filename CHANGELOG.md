@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## v0.3.0 — 2026-10-19
+
+The release that closes the security hole in pairing, makes the phone's polls cheap, and
+turns the app from a reader into a remote control that can tell you when it needs you.
 
 ### Android client — `dev.dsh.mobile`
 
@@ -50,7 +53,8 @@
   annotation makes.
 - **The problem banner offers Retry.** A link that may simply have come back is one tap from a fresh read instead of up
   to a minute of backoff; an expired token keeps the Reconnect action it needs instead.
-- **A message composed while the link is down waits instead of dying.** A transport failure moves it to a small in-memory  outbox with the reason shown above the composer; the next poll that succeeds sends it. The sender mints a
+- **A message composed while the link is down waits instead of dying.** A transport failure moves it to a small
+  in-memory outbox with the reason shown above the composer; the next poll that succeeds sends it. The sender mints a
   `clientMessageId`, and the host answers a repeat as `duplicate: true` without prompting twice — so a retry after a lost
   answer is the same message, not a second one. A refusal that is not a transport failure is dropped with its reason,
   because retrying a `writer-held` forever is a queue that never drains.
@@ -135,6 +139,15 @@
 - `limit`, `beforeSeq` and `afterSeq` are parsed strictly (`60abc` is a `400`, not `60`), and the two cursors are
   mutually exclusive.
 - The link-preview fetch takes the request's abort signal, so a phone that gives up stops the host fetching too.
+
+### Verified on this release
+
+- 482 offline plugin checks and 33 status-mapping checks, including the pairing, device, SSE-backpressure and
+  idempotent-prompt cases added in this cycle.
+- 362 JVM tests, including the contract fixtures captured by the plugin suite and the new pure modules: image sizing,
+  the watch feed, address failover, transcript search, message quoting and the unread map's codec.
+- `gradlew lintDebug` clean; generated strings in sync with the sixteen tables (369 resources).
+- Not covered by any of the above: everything in [`docs/VERIFICATION.md`](docs/VERIFICATION.md), which needs a phone.
 
 ## v0.2.0 — 2026-10-15
 
