@@ -30,6 +30,7 @@ Binding `127.0.0.1` is the default and is logged as a warning, because a phone t
 | `DELETE` | `/mobile/devices/{id}` | Revoke one device, or the caller itself. |
 | `GET` | `/mobile/status` | Listener, pairing and session counts for the settings screen. |
 | `GET` | `/mobile/sessions` | List the host's chats, newest first, with a status dot. |
+| `GET` | `/mobile/pulse` | Sessions, projects, approvals and questions in one tagged answer — what the list screen polls. |
 | `POST` | `/mobile/sessions` | Create one chat, optionally inside a project. |
 | `GET` | `/mobile/sessions/{id}/messages` | Read one page of history. |
 | `POST` | `/mobile/sessions/{id}/messages` | Append one prompt: text, photos, staged files. |
@@ -139,7 +140,16 @@ not been read yet arrives without a dot, since an absent dot claims nothing and 
 (`lib/index.js:2602`). A running chat is answered from the host's flag and a blank chat is `idle` with no log read;
 every other row is read once per `updatedAt`, and at most 24 reads are started per request, so a cold list is never as
 slow as its own worst case (`lib/index.js:2607`, `98`). There is no pagination: the whole list is filtered and sorted
-by `updatedAt`, and the project lookup is one workspace read for the page (`lib/index.js:2462`).
+by `updatedAt`, and the project lookup is one workspace read for the page (`lib/index.js:2462`). The answer carries an
+entity tag; send it back as `if-none-match` and an unchanged list is a `304` with no body.
+
+### GET /mobile/pulse
+
+`subagents`, `q` and `workspaces` mean exactly what they mean on `/mobile/sessions`. Answer `200 { sessions,
+workspaces, workspacesAvailable, approvals, questions, approvalsPending, questionsPending }`: the four reads the list
+screen used to make separately — sessions, projects, approvals, questions — under one body and one entity tag, so the
+common "nothing changed" tick is a `304` and no bytes at all. `workspacesAvailable` is `false` when the host mounts no
+project registry, which is a fact rather than a failure.
 
 ### POST /mobile/sessions
 
@@ -151,20 +161,30 @@ the controller's own rules apply, and its refusals travel back through the code 
 
 ### GET /mobile/sessions/{id}/messages
 
-`limit` (integer 1–400, default `60`) caps the entries; anything else is `400 invalid-request`. `beforeSeq` (integer ≥
-0, absent by default) is the exclusive upper bound, absent meaning the newest page. Answer `200 { sessionId, cursor,
-hasMore, entries }`. `cursor` is the log cursor, not the newest message sequence: it comes from the `follow` opening
-snapshot precisely because the `page` call reports only the events inside its own window, and using that as
-`throughSeq` truncates freshly appended turns (`lib/index.js:2772`).
+`limit` (integer 1–400, default `60`) caps the entries; a value that is not strictly an integer in range is `400
+invalid-request` — `60abc` is a typo, not a page size. `beforeSeq` (integer ≥ 0) is the exclusive upper bound, absent
+meaning the newest page. `afterSeq` (integer ≥ 0) is the **incremental** read: only entries newer than it are returned,
+which is what makes a phone's 2.5 s poll an empty array instead of sixty entries it already holds. The two cursors are
+mutually exclusive (`400`), and both are parsed strictly (`lib/index.js:3320`).
+
+Answer `200 { sessionId, cursor, hasMore, nextBeforeSeq, entries, afterSeq? }`. `cursor` is the log cursor, not the
+newest message sequence: it comes from the `follow` opening snapshot precisely because the `page` call reports only the
+events inside its own window, and using that as `throughSeq` truncates freshly appended turns. `nextBeforeSeq` is the
+seq to page backwards from, and it is present even when `entries` is empty — a page that is all bookkeeping would
+otherwise leave a client with no cursor to ask for. `afterSeq` is echoed only when the request used it.
+
+Every one of these answers carries an **entity tag** and honours `if-none-match` with `304` and no body
+(`lib/index.js:1635`); `cache-control` is `no-cache`, so a client may keep the last answer and revalidate it cheaply
+instead of re-downloading a transcript that has not moved.
 
 `entries` are `wireEvent` objects, oldest first; events with nothing a chat client can show are dropped rather than
-forwarded, so `entries` can be shorter than the log (`lib/index.js:1361`). Each entry carries `kind`, `seq`, `type`,
+forwarded, so `entries` can be shorter than the log (`lib/index.js:1459`). Each entry carries `kind`, `seq`, `type`,
 an optional `time`, and its kind's own fields: `message` (`role`, `content`, `interrupted`, `source`), `tool-call` /
 `tool-result` (`turn`, `step`, `callId`, `name`, `arguments` / `isError`, `content`), `turn-start` / `turn-end`
 (`turn`, `reason`), `step-start` / `step-end`, `deliverable` (`files: [{ index, path, description? }]`),
 `approval-asked` (`approvalId`, `name`, `callId`, `reason`), `approval-decided` (`approvalId`, `outcome`). Content
-blocks reduce to `text`, `reasoning`, `image`, `file`, `tool-call` (`lib/index.js:946`). A session with no readable
-history answers `404 session/not-found` (`lib/index.js:2805`).
+blocks reduce to `text`, `reasoning`, `image`, `file`, `tool-call` (`lib/index.js:1030`). A session with no readable
+history answers `404 session/not-found`.
 
 ### POST /mobile/sessions/{id}/messages
 
@@ -287,7 +307,8 @@ next request.
 ### GET /mobile/approvals
 
 `200 { items: [...] }`, each item `{ id, sessionId, toolName, callId, reason, displayReason, createdAt, outcomes }`,
-with `outcomes` always `["allowed-once", "rejected"]` (`lib/index.js:3226`, `70`). `displayReason` is the harness's
+with `outcomes` always `["allowed-once", "rejected"]` (`lib/index.js:3226`, `70`). The answer carries an entity tag, so
+a poll with nothing pending revalidates as a `304`. `displayReason` is the harness's
 locale map reduced to one line, English first (`lib/index.js:1307`). A phone polls, so it cannot rely on catching the
 stream frame that announced a request: this read is what makes a card survive a reconnect, a backgrounded app, or a
 frame that arrived while nobody was looking (`lib/index.js:3220`). Pending approvals live in memory and are never
@@ -307,7 +328,8 @@ not turn into a silent deny (`lib/index.js:1929`, `68`).
 ### GET /mobile/questions
 
 `200 { items: [...] }`, each item `{ id, sessionId, callId, createdAt, expired, questions }` (`lib/index.js:3268`);
-each question is `{ id, header, question, detail, multiSelect, options: [{ label, description }] }`. Fields are copied
+each question is `{ id, header, question, detail, multiSelect, options: [{ label, description }] }`. The answer carries
+an entity tag, like the approvals list. Fields are copied
 rather than forwarded wholesale, so a client never has to defend itself against whatever keys a model invented;
 `multi_select` and `multiSelect` are both accepted because both spellings are in the wild, and a question with no id
 gets the positional stand-in `q<n>` rather than being dropped (`lib/index.js:1011`).

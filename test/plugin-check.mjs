@@ -736,7 +736,59 @@ function ok(condition, label) {
   ok(missing.status === 404, `an unknown session answers 404 (got ${missing.status})`)
 }
 
+// ── incremental reads, entity tags and the pulse ────────────────────────────
+{
+  const all = await authed('/mobile/sessions/session-aaaa/messages?limit=50')
+  const newest = all.body.entries.at(-1).seq
+
+  // The read that makes a 2.5 s poll cheap: ask for what is newer than the cursor
+  // the client already holds.
+  const nothing = await authed(`/mobile/sessions/session-aaaa/messages?afterSeq=${newest}`)
+  ok(nothing.status === 200, `an incremental read answers 200 (got ${nothing.status})`)
+  ok(nothing.body.entries.length === 0, 'an incremental read with nothing new answers an empty page')
+  ok(nothing.body.afterSeq === newest, 'the answer names the cursor it applied')
+
+  const incremental = await authed('/mobile/sessions/session-aaaa/messages?afterSeq=4')
+  const newer = all.body.entries.filter((entry) => entry.seq > 4)
+  ok(incremental.body.entries.length === newer.length, `an incremental page carries only newer entries (got ${incremental.body.entries.length})`)
+  ok(incremental.body.entries.every((entry) => entry.seq > 4), 'no entry at or below the cursor is repeated')
+  ok(incremental.body.nextBeforeSeq === newer[0].seq, 'the page names where older history continues')
+
+  const both = await authed('/mobile/sessions/session-aaaa/messages?afterSeq=4&beforeSeq=8')
+  ok(both.status === 400, `afterSeq and beforeSeq cannot be combined (got ${both.status})`)
+  const malformed = await authed('/mobile/sessions/session-aaaa/messages?afterSeq=4x')
+  ok(malformed.status === 400, `a malformed afterSeq is refused (got ${malformed.status})`)
+  const typoLimit = await authed('/mobile/sessions/session-aaaa/messages?limit=60abc')
+  ok(typoLimit.status === 400, `a malformed limit is refused instead of read as 60 (got ${typoLimit.status})`)
+
+  // An entity tag makes "nothing changed" one round trip with no body.
+  const first = await fetch(`${base}/mobile/sessions`, { headers: { authorization: `Bearer ${token}` } })
+  const tag = first.headers.get('etag')
+  ok(typeof tag === 'string' && tag.startsWith('"'), `a list answer carries an entity tag (got ${tag})`)
+  const again = await fetch(`${base}/mobile/sessions`, {
+    headers: { authorization: `Bearer ${token}`, 'if-none-match': tag },
+  })
+  ok(again.status === 304, `an unchanged list revalidates to 304 (got ${again.status})`)
+  ok((await again.text()) === '', 'a 304 carries no body')
+
+  // The pulse is the list screen's four polls under one answer and one tag.
+  const pulseResponse = await fetch(`${base}/mobile/pulse`, { headers: { authorization: `Bearer ${token}` } })
+  ok(pulseResponse.status === 200, `the pulse answers 200 (got ${pulseResponse.status})`)
+  const pulseTag = pulseResponse.headers.get('etag')
+  const pulse = await pulseResponse.json()
+  ok(Array.isArray(pulse.sessions) && pulse.sessions.length === sessions.length - 1, `the pulse carries the session rows (got ${pulse.sessions.length})`)
+  ok(Array.isArray(pulse.workspaces) && pulse.workspaces.length === workspaces.length, 'the pulse carries the projects')
+  ok(pulse.workspacesAvailable === true, 'the pulse says the host groups chats')
+  ok(Array.isArray(pulse.approvals) && Array.isArray(pulse.questions), 'the pulse carries both queues')
+  ok(pulse.approvalsPending === 0 && pulse.questionsPending === 0, 'the pulse counts both queues')
+  const pulseAgain = await fetch(`${base}/mobile/pulse`, {
+    headers: { authorization: `Bearer ${token}`, 'if-none-match': pulseTag },
+  })
+  ok(pulseAgain.status === 304, `an unchanged pulse revalidates to 304 (got ${pulseAgain.status})`)
+}
+
 // ── images ───────────────────────────────────────────────────────────────────
+
 {
   const raw = await fetch(`${base}/mobile/sessions/session-aaaa/images/att-9/raw`, { headers: { authorization: `Bearer ${token}` } })
   ok(raw.status === 200, `raw image answers 200 (got ${raw.status})`)

@@ -34,6 +34,19 @@
 - The state file is version 3: devices gain a stable `id` (derived from the token at creation, kept across rotations),
   and a table written by an older build is read and upgraded in place.
 
+**Synchronisation**
+
+- `GET /mobile/sessions/{id}/messages` accepts `afterSeq`: only entries newer than the cursor come back, so a poll with
+  nothing new answers `[]` instead of the newest sixty entries. `nextBeforeSeq` is always present, even on an empty
+  page, so a window that is all bookkeeping no longer leaves the older history unreachable.
+- `GET /mobile/pulse` answers sessions, projects, approvals and questions in one payload: the list screen's four polls
+  become one request.
+- History, pulse, session list, approvals and questions carry an **entity tag** and honour `if-none-match` with `304`;
+  `cache-control` is `no-cache` so a client can revalidate what it already holds.
+- `limit`, `beforeSeq` and `afterSeq` are parsed strictly (`60abc` is a `400`, not `60`), and the two cursors are
+  mutually exclusive.
+- The link-preview fetch takes the request's abort signal, so a phone that gives up stops the host fetching too.
+
 ## v0.2.0 — 2026-10-15
 
 First public release: the host plugin and the Android client, together.

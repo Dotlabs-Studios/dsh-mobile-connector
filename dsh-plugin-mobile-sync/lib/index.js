@@ -1643,6 +1643,75 @@ function sendJson(res, status, payload) {
 }
 
 /**
+ * Answer one JSON payload with an entity tag, honouring `if-none-match`.
+ *
+ * The phone polls, so the common case is "nothing changed" — and the body is the
+ * cost, not the request. The tag is a digest of the payload the route had already
+ * built, so a matching request is answered `304` with no body at all. `no-cache`
+ * rather than `no-store`: the tag only helps a client that is willing to keep the
+ * last answer and revalidate it.
+ *
+ * @param req - the incoming request.
+ * @param res - the response to write.
+ * @param status - HTTP status code for a fresh answer.
+ * @param payload - JSON-serializable value.
+ */
+function sendJsonEtag(req, res, status, payload) {
+  const body = Buffer.from(JSON.stringify(payload), 'utf8')
+  const etag = `"${createHash('sha256').update(body).digest('base64url').slice(0, 22)}"`
+  const offered = String(req.headers['if-none-match'] ?? '')
+    .split(',')
+    .map((value) => value.trim())
+  if (offered.includes(etag) || offered.includes('*')) {
+    res.writeHead(304, { etag, 'cache-control': 'no-cache' })
+    res.end()
+    return
+  }
+  res.writeHead(status, {
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': String(body.length),
+    etag,
+    'cache-control': 'no-cache',
+  })
+  res.end(body)
+}
+
+/**
+ * Read one non-negative integer query parameter, strictly.
+ *
+ * `Number.parseInt('60abc')` is `60`, which turns a typo into a silently
+ * different page; the pattern is what makes a bad parameter a `400` instead.
+ *
+ * @param url - the parsed request URL.
+ * @param name - the parameter name.
+ * @returns the value, or undefined when the parameter is absent.
+ * @throws HttpError 400 when the value is not a non-negative integer.
+ */
+function readSeqParam(url, name) {
+  const raw = url.searchParams.get(name)
+  if (raw === null) return undefined
+  if (!/^\d{1,9}$/.test(raw)) throw new HttpError(400, 'invalid-request', `${name} must be a non-negative integer`)
+  return Number.parseInt(raw, 10)
+}
+
+/**
+ * Read the `limit` parameter of a history read.
+ * @param url - the parsed request URL.
+ * @returns a bounded message count.
+ * @throws HttpError 400 when the value is not an integer in range.
+ */
+function readHistoryLimit(url) {
+  const raw = url.searchParams.get('limit')
+  if (raw === null) return DEFAULT_MAX_MESSAGES
+  if (!/^\d{1,3}$/.test(raw)) throw new HttpError(400, 'invalid-request', 'limit must be an integer between 1 and 400')
+  const value = Number.parseInt(raw, 10)
+  if (value <= 0 || value > MAX_HISTORY_MESSAGES) {
+    throw new HttpError(400, 'invalid-request', 'limit must be an integer between 1 and 400')
+  }
+  return value
+}
+
+/**
  * Answer one failure as a JSON error envelope.
  * @param res - the response to write.
  * @param failure - status, code, and message.
@@ -2509,6 +2578,10 @@ class MobileSync {
       await this.routeSessions(req, res, url)
       return
     }
+    if (segments.length === 2 && segments[1] === 'pulse' && method === 'GET') {
+      await this.routePulse(req, res, url)
+      return
+    }
     if (segments.length === 2 && segments[1] === 'sessions' && method === 'POST') {
       await this.routeCreateSession(req, res)
       return
@@ -2846,8 +2919,23 @@ class MobileSync {
    * @param url - the parsed request URL.
    */
   async routeSessions(req, res, url) {
+    const items = await this.sessionItems(url, this.signalFor(req))
+    sendJsonEtag(req, res, 200, { items })
+  }
+
+  /**
+   * Build the session list one request asked for.
+   *
+   * Split from the route because the pulse response carries the same rows: two
+   * implementations of "which chats, with which project, in which order" would
+   * eventually disagree about one of the three.
+   *
+   * @param url - the parsed request URL (`subagents`, `q`, `workspaces`).
+   * @param signal - request lifetime.
+   * @returns the session rows, newest first, with their status dots.
+   */
+  async sessionItems(url, signal) {
     const controller = this.controller()
-    const signal = this.signalFor(req)
     const listed = await controller.list({}, signal)
     const includeSubagents = url.searchParams.get('subagents') === '1'
     const query = (url.searchParams.get('q') ?? '').trim().toLowerCase()
@@ -2883,7 +2971,38 @@ class MobileSync {
     }
     items.sort((left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0))
     await this.attachChatStatuses(items)
-    sendJson(res, 200, { items })
+    return items
+  }
+
+  /**
+   * One request answering everything the list screen polls for.
+   *
+   * The app used to make four requests per list tick — sessions, projects,
+   * approvals, questions — and four answers' worth of headers, JSON and radio
+   * time to learn that nothing had changed. This is the same four payloads under
+   * one entity tag, so the common case is one `304` with no body.
+   *
+   * @param req - the incoming request.
+   * @param res - the response to write.
+   * @param url - the parsed request URL.
+   */
+  async routePulse(req, res, url) {
+    const signal = this.signalFor(req)
+    const [items, workspaces] = await Promise.all([
+      this.sessionItems(url, signal),
+      url.searchParams.get('workspaces') === '0' ? Promise.resolve([]) : this.workspaceItems(signal),
+    ])
+    const approvals = this.approvalItems()
+    const questions = this.questionItems()
+    sendJsonEtag(req, res, 200, {
+      sessions: items,
+      workspaces: workspaces ?? [],
+      workspacesAvailable: workspaces !== null,
+      approvals,
+      questions,
+      approvalsPending: approvals.length,
+      questionsPending: questions.length,
+    })
   }
 
   /**
@@ -3167,16 +3286,12 @@ class MobileSync {
   async routeMessages(req, res, sessionId, url) {
     const controller = this.controller()
     const signal = this.signalFor(req)
-    const beforeParam = url.searchParams.get('beforeSeq')
-    const beforeSeq = beforeParam === null ? undefined : Number.parseInt(beforeParam, 10)
-    if (beforeSeq !== undefined && (!Number.isSafeInteger(beforeSeq) || beforeSeq < 0)) {
-      throw new HttpError(400, 'invalid-request', 'beforeSeq must be a non-negative integer')
+    const beforeSeq = readSeqParam(url, 'beforeSeq')
+    const afterSeq = readSeqParam(url, 'afterSeq')
+    if (beforeSeq !== undefined && afterSeq !== undefined) {
+      throw new HttpError(400, 'invalid-request', 'beforeSeq and afterSeq cannot be combined')
     }
-    const maxParam = url.searchParams.get('limit')
-    const maxMessages = maxParam === null ? DEFAULT_MAX_MESSAGES : Number.parseInt(maxParam, 10)
-    if (!Number.isSafeInteger(maxMessages) || maxMessages <= 0 || maxMessages > 400) {
-      throw new HttpError(400, 'invalid-request', 'limit must be an integer between 1 and 400')
-    }
+    const maxMessages = readHistoryLimit(url)
 
     const stream = controller.follow(
       { address: { kind: 'session', sessionId }, maxMessages },
@@ -3212,12 +3327,31 @@ class MobileSync {
       hasMore = page.hasMore === true
     }
 
+    // An incremental read: everything the caller has not held yet. The window is
+    // still the newest one, so "nothing happened" is answered with an empty array
+    // — one digest on the wire instead of sixty entries every 2.5 seconds.
+    if (afterSeq !== undefined) {
+      records = records.filter((record) => Number.isSafeInteger(record?.event?.seq) && record.event.seq > afterSeq)
+    }
+
     const entries = []
     for (const record of records) {
       const entry = wireEvent(record.event)
       if (entry !== null) entries.push(entry)
     }
-    sendJson(res, 200, { sessionId, cursor, hasMore, entries })
+    // The cursor to page backwards from, even when this page is empty: a client
+    // that gets `entries: []` with `hasMore: true` — the newest window can be all
+    // bookkeeping — otherwise has no seq to ask for, and the history before it is
+    // unreachable.
+    const nextBeforeSeq = entries.length > 0 ? entries[0].seq : (beforeSeq ?? cursor)
+    sendJsonEtag(req, res, 200, {
+      sessionId,
+      cursor,
+      hasMore,
+      nextBeforeSeq,
+      entries,
+      ...(afterSeq === undefined ? {} : { afterSeq }),
+    })
   }
 
   /**
@@ -3619,7 +3753,16 @@ class MobileSync {
    * @param res - the response to write.
    */
   async routeApprovals(req, res) {
-    sendJson(res, 200, { items: [...this.pendingApprovals.values()].map((record) => this.wireApproval(record)) })
+    sendJsonEtag(req, res, 200, { items: this.approvalItems() })
+  }
+
+  /**
+   * The approvals waiting for an answer.
+   *
+   * @returns the wire approvals, in the order they were raised.
+   */
+  approvalItems() {
+    return [...this.pendingApprovals.values()].map((record) => this.wireApproval(record))
   }
 
   /**
@@ -3661,7 +3804,7 @@ class MobileSync {
    * @param res - the response to write.
    */
   async routeQuestions(req, res) {
-    sendJson(res, 200, { items: this.questionItems() })
+    sendJsonEtag(req, res, 200, { items: this.questionItems() })
   }
 
   /**
@@ -4146,7 +4289,9 @@ class MobileSync {
     }
     let result
     try {
-      result = await service.fetch({ url: requested })
+      // The request's own lifetime is the fetch's lifetime: a phone that gives up
+      // on a slow page must not leave the host fetching it to the end.
+      result = await service.fetch({ url: requested, signal: this.signalFor(req) })
     } catch (error) {
       throw previewHttpError(error)
     }
