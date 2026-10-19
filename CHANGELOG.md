@@ -27,8 +27,9 @@
 - **Settings → Diagnostics answers "is the PC there, and is it new enough".** One read of `/mobile/health` shows the app
   version, the plugin version with the wire `apiVersion`, the address, the measured round-trip, the uptime and both
   pending counts, with a copy button for the report. An older host that has no such route is named as one.
-- **A message composed while the link is down waits instead of dying.** A transport failure moves it to a small in-memory
-  outbox with the reason shown above the composer; the next poll that succeeds sends it. The sender mints a
+- **The problem banner offers Retry.** A link that may simply have come back is one tap from a fresh read instead of up
+  to a minute of backoff; an expired token keeps the Reconnect action it needs instead.
+- **A message composed while the link is down waits instead of dying.** A transport failure moves it to a small in-memory  outbox with the reason shown above the composer; the next poll that succeeds sends it. The sender mints a
   `clientMessageId`, and the host answers a repeat as `duplicate: true` without prompting twice — so a retry after a lost
   answer is the same message, not a second one. A refusal that is not a transport failure is dropped with its reason,
   because retrying a `writer-held` forever is a queue that never drains.

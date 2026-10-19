@@ -7,3 +7,4 @@ component_scroll_to_bottom	Vai in fondo alla chat	Go to the end of the chat
 component_code	codice	code
 component_copy	Copia	Copy
 component_copied	Copiato	Copied
+action_retry	Riprova	Retry

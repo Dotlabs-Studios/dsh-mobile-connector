@@ -16,6 +16,7 @@
     <string name="action_close">Close</string>
     <string name="action_new_session">New chat</string>
     <string name="action_pair">Pair</string>
+    <string name="action_retry">Retry</string>
     <string name="action_revoke">Revoke</string>
     <string name="action_save">Save</string>
     <string name="action_send">Send</string>

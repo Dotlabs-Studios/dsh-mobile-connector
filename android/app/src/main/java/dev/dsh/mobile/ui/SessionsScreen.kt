@@ -168,13 +168,14 @@ fun SessionsScreen(viewModel: AppViewModel) {
             viewModel.problem?.let { problem ->
                 // An expired or revoked token has exactly one fix, so the banner
                 // offers it instead of leaving the user to hunt for the unpair
-                // control in the settings.
+                // control in the settings. Anything else is a link that may simply
+                // have come back, so it offers the read that proves it.
                 val stale = problem.code == "unauthorized"
                 ProblemBanner(
                     message = textResource(problem.message),
                     onDismiss = { viewModel.dismissProblem() },
-                    actionLabel = if (stale) stringResource(R.string.session_reconnect) else null,
-                    onAction = if (stale) ({ viewModel.unpair() }) else null,
+                    actionLabel = stringResource(if (stale) R.string.session_reconnect else R.string.action_retry),
+                    onAction = if (stale) ({ viewModel.unpair() }) else ({ viewModel.retryNow() }),
                 )
             }
 

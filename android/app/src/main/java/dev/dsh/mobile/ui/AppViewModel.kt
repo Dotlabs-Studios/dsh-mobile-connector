@@ -998,6 +998,29 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
+     * Try the link again now, instead of waiting for the next backoff step.
+     *
+     * The banner's own button: someone who just fixed the network should not wait
+     * up to a minute for a poll, and a message waiting in the outbox should go out
+     * at that moment rather than at the next tick.
+     */
+    fun retryNow() {
+        if (api == null) return
+        listFailures = 0
+        chatFailures = 0
+        if (foreground) {
+            pausePolling()
+            resumePolling()
+            if (openSession != null) {
+                pauseChatPolling()
+                resumeChatPolling()
+            }
+        } else {
+            viewModelScope.launch { loadSessions() }
+        }
+    }
+
+    /**
      * Create a session on the host and open it.
      *
      * @param cwd the PC directory the chat runs in, or null for the host's own

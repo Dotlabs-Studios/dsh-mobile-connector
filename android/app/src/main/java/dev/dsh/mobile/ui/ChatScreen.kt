@@ -293,7 +293,16 @@ fun ChatScreen(viewModel: AppViewModel) {
                 .fillMaxSize(),
         ) {
             viewModel.problem?.let { problem ->
-                ProblemBanner(message = textResource(problem.message), onDismiss = { viewModel.dismissProblem() })
+                // A dead link and a queued message both want the same thing: a read
+                // now, rather than at the next backoff step. An expired token does
+                // not, and offers Reconnect on the list screen instead.
+                val retryable = problem.code != "unauthorized"
+                ProblemBanner(
+                    message = textResource(problem.message),
+                    onDismiss = { viewModel.dismissProblem() },
+                    actionLabel = if (retryable) stringResource(R.string.action_retry) else null,
+                    onAction = if (retryable) ({ viewModel.retryNow() }) else null,
+                )
             }
 
             if (searching) {
