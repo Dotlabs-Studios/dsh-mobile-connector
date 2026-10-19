@@ -24,6 +24,7 @@ repository root, and the Kotlin sources live under `android/app/src/main/java/de
 | `data/Folders.kt`, `data/Workspaces.kt`, `data/ChatStatus.kt` | The browse pane's decisions (which folder a typed name means, where a create landed); the chat list's structure without words (section keys, the five-chat slice); the five chat statuses with no labels attached. |
 | `data/LanguageMode.kt`, `data/LanguageChoice.kt`, `data/ThemeMode.kt` | The two stored choices and their consequences: which tile is ticked, and whether the activity has to be rebuilt. |
 | `data/ImageSizing.kt` | Two arithmetic rules, pure for testing: how far a picked photo is scaled before upload, and which power-of-two subsample a transcript image is decoded with. |
+| `data/PollBackoff.kt` | How long to wait before the next poll: the same arithmetic for both loops, with a cap and a saturating shift. |
 | `data/HostFailover.kt` | Which address to try when the current one stops answering: the address in use is never its own fallback, duplicates and blanks are dropped, and a tried address is not retried. |
 | `data/TranscriptSearch.kt` | Flattens a transcript row to the text a search should look at — including the command inside a collapsed card — and filters the rows already held. |
 | `data/MessageQuote.kt` | The quoted form of a message: one `>` per line, cut at a readable length with the cut visible. |

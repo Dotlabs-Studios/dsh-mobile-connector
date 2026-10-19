@@ -27,7 +27,7 @@ project can do until the harness grows the call.
 | `afterSeq` incremental messages | done | route parameter plus `ChatSync.refresh` | plugin check and `ChatSyncTest` |
 | ETag / 304 | done | `sendJsonEtag` on history, pulse, sessions, approvals, questions | revalidation checks |
 | Single pulse endpoint | done | `GET /mobile/pulse`, with the client falling back to four reads on 404 | `pulse` contract fixture, `MobileApiTest` |
-| Adaptive poll backoff | done | `listDelay`/`chatDelay`, capped at 60 s | compiled; the shape is a pure function of the failure count |
+| Adaptive poll backoff | done | `pollDelay` (pure, both loops share it), capped at 60 s, saturating after four doublings | `PollBackoffTest` |
 | SSE as invalidation signal | done | `SseParser` + watch service; the app still polls | `WatchFeedTest` |
 
 ## Client correctness

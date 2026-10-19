@@ -152,6 +152,9 @@ turns the app from a reader into a remote control that can tell you when it need
 - 362 JVM tests, including the contract fixtures captured by the plugin suite and the new pure modules: image sizing,
   the watch feed, address failover, transcript search, message quoting and the unread map's codec.
 - `gradlew lintDebug` clean; generated strings in sync with the sixteen tables (369 resources).
+- **The poll backoff is one tested function.** Both loops asked the same question with different clocks; the arithmetic
+  now lives in `pollDelay` with a cap and a saturating shift, and `PollBackoffTest` covers the healthy, doubling, capped
+  and saturated cases — the last of which is what stops a long outage from shifting an interval into nonsense.
 - **The API reference cites the plugin by file, not by line.** It used to point at `lib/index.js:NNNN`; the file grew by
   two thousand lines in the middle and most coordinates below the pairing section were wrong, which reads exactly like
   being right. A repair attempt that matched prose identifiers to definitions produced confident nonsense (`port`,

@@ -55,6 +55,7 @@ import dev.dsh.mobile.data.applyLanguage
 import dev.dsh.mobile.data.failoverCandidates
 import dev.dsh.mobile.data.normalizeHost
 import dev.dsh.mobile.data.nextFailoverHost
+import dev.dsh.mobile.data.pollDelay
 import dev.dsh.mobile.data.withLanguage
 import dev.dsh.mobile.watch.WatchService
 import kotlinx.coroutines.Job
@@ -2503,11 +2504,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
      * failing poll backs off towards a minute instead of hammering a link that is
      * down.
      */
-    private fun listDelay(): Long = when {
-        listFailures > 0 -> minOf(FAILURE_CAP_MS, LIST_POLL_MS shl minOf(listFailures, 4))
-        sessions.any { it.running } -> LIST_POLL_MS
-        else -> LIST_IDLE_MS
-    }
+    private fun listDelay(): Long = pollDelay(
+        failures = listFailures,
+        busy = sessions.any { it.running },
+        activeDelay = LIST_POLL_MS,
+        idleDelay = LIST_IDLE_MS,
+        cap = FAILURE_CAP_MS,
+    )
 
     /**
      * How long to wait before the next chat poll.
@@ -2515,11 +2518,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
      * Same shape as [listDelay]: fast while the agent is working, slower when the
      * turn is over, and backing off on failure.
      */
-    private fun chatDelay(): Long = when {
-        chatFailures > 0 -> minOf(FAILURE_CAP_MS, CHAT_POLL_MS shl minOf(chatFailures, 4))
-        running -> CHAT_POLL_MS
-        else -> CHAT_IDLE_MS
-    }
+    private fun chatDelay(): Long = pollDelay(
+        failures = chatFailures,
+        busy = running,
+        activeDelay = CHAT_POLL_MS,
+        idleDelay = CHAT_IDLE_MS,
+        cap = FAILURE_CAP_MS,
+    )
 
     /** Read the session list once, tolerating a transient failure. */
     private suspend fun loadSessions() {
