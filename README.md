@@ -313,7 +313,7 @@ cd android
 .\gradlew.bat test
 ```
 
-The data layer is deliberately plain JVM code — no `Context`, no Compose — so wire decoding, transcript folding, markdown parsing, link classification, folder rules, permission presets, delivery resolution and language parity are all covered by local tests. `TranslationParityTest` reads both `strings.xml` files and fails when a key is missing from one, which is the only thing standing between a half-translated release and a screen that mixes two languages. The suite is the gate a release passes: 300 tests, green, on the commit the APK is built from.
+The data layer is deliberately plain JVM code — no `Context`, no Compose — so wire decoding, transcript folding, markdown parsing, link classification, folder rules, permission presets, delivery resolution and language parity are all covered by local tests. `TranslationParityTest` reads both `strings.xml` files and fails when a key is missing from one, which is the only thing standing between a half-translated release and a screen that mixes two languages. The suite is the gate a release passes: 357 tests today, green, on the commit the APK is built from — plus `lintDebug`, which is a gate of its own.
 
 **Plugin suite, offline** (boots the plugin against a stand-in Cordis context and drives the real HTTP routes over loopback):
 

@@ -224,7 +224,7 @@ choice is `System`, `Italian` or `English` and is stored by id (`data/LanguageMo
 (`ui/AppViewModel.kt:574`, `data/LanguageChoice.kt:36`).
 
 Both XML files are generated, never edited: the source is the 16 tab-separated tables under `tools/l10n/` (key, Italian, English), and `tools/l10n-build.py` writes `res/values/strings.xml` and
-`res/values-en/strings.xml` — 333 resources each today. The generator refuses duplicate keys, empty
+`res/values-en/strings.xml` — 368 resources each today. The generator refuses duplicate keys, empty
 values, a placeholder that exists in one language and not the other, plural forms a language cannot ask
 for, and characters that would not survive XML (`tools/l10n-build.py:15`). `TranslationParityTest` then
 holds the two files against each other on the JVM, which is the only cheap moment to notice that Android
