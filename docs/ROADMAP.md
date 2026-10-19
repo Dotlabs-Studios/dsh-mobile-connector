@@ -99,3 +99,33 @@ harness ever exposes one, the shape is small:
 3. **Split the view model** — before adding anything else to it.
 4. **QR/mDNS** — polish on onboarding, best done when the pairing table exists.
 5. **Stop** — only if the harness grows the call.
+
+## Handoff
+
+`main` is at v0.3.0 with every gate green and the results recorded in
+[STATUS.md](STATUS.md): 484 plugin checks, 33 status-mapping, 13 against the UI stub,
+367 JVM tests, lint clean, strings in sync, and both APKs built (11.98 MB release,
+1.72 MB shrunk). Start the next session by running those; a red one is news.
+
+### What was tried and rejected, so it is not tried again
+
+- **Repairing `docs/API.md` line numbers by matching prose identifiers to
+  definitions.** It produced confident nonsense — `port`, `status`, `callId` — and was
+  reverted. The citations now name the file, and `tools/docrefs.py --check` is the
+  guard. Do not rebuild the matcher.
+- **Turning R8 on because the shrunk APK builds.** It builds, it is 86% smaller, and
+  `tools/dex-keep-check.py` shows the serializers survived — but a decode that fails is
+  only visible on a phone, which is why the flag is still an opt-in. Flip it after the
+  checklist, not before.
+- **Splitting `AppViewModel` opportunistically.** No instrumented tests exist, so a
+  partial extraction cannot be verified; the seams in section 4 are the plan and one
+  concern per commit is the method.
+- **Interrupting a turn.** The harness bundle has no interrupt entry point —
+  `session/interrupt`, `abortTurn`, `stopTurn` and `async interrupt(` are all absent;
+  `steer` is the only documented way to stop one. Nothing in this app can work around
+  that, so the button stays out.
+- **Shipping the offline outbox as a persisted queue.** It is in memory on purpose: a
+  queue that outlives the app has to answer which host and which token it belongs to,
+  and answering that silently is worse than losing a message the reader can see is
+  unsent.
+
