@@ -336,6 +336,8 @@ node test/find-free-session.mjs http://127.0.0.1:4399 <token>
 
 **On every push**: `.github/workflows/ci.yml` runs all three gates — the plugin suites, the generated-strings check, and the JVM tests plus a debug APK artefact — so the release gate is not a command somebody has to remember.
 
+**Contract fixtures**: `node test/plugin-check.mjs` also writes `test/contract/*.json` from the real route answers — sessions, a history page, the pulse, devices, health, approvals, questions — with the volatile parts (ports, uptimes, timestamps, per-pairing ids) normalised to stable placeholders. `ContractFixturesTest` on the JVM decodes those files with the client's own serializers. A shape change on the host therefore fails the plugin suite until the fixture is regenerated, and a rename fails the JVM test if the client was not updated with it — the two halves can no longer drift apart silently.
+
 ---
 
 ## Repository layout
@@ -354,7 +356,7 @@ docs/
   APP.md                    how the app is put together
   L10N.md                   the localisation spec (Italian)
   shots/                    the screenshots in this README
-test/                       plugin, e2e and UI-stub suites
+test/                       plugin, e2e and UI-stub suites; contract fixtures
 tools/                      string generator, launcher icon generator
 .github/workflows/          the CI gate: plugin checks, strings, JVM tests, APK
 CHANGELOG.md                what each release contains

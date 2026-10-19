@@ -1,0 +1,30 @@
+{
+  "items": [
+    {
+      "id": "question-1",
+      "sessionId": "session-aaaa",
+      "callId": "call-ask",
+      "createdAt": 1760000000000,
+      "expired": false,
+      "questions": [
+        {
+          "id": "timing",
+          "header": "Tempistica backend",
+          "question": "Come procediamo con il deploy?",
+          "detail": null,
+          "multiSelect": false,
+          "options": [
+            {
+              "label": "Adesso (Consigliato)",
+              "description": "Faccio subito il deploy"
+            },
+            {
+              "label": "Aspetta",
+              "description": "Prima cambio il DNS"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

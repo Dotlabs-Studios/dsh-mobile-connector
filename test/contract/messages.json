@@ -1,0 +1,140 @@
+{
+  "sessionId": "session-aaaa",
+  "cursor": 9,
+  "hasMore": false,
+  "nextBeforeSeq": 0,
+  "entries": [
+    {
+      "kind": "turn-start",
+      "seq": 0,
+      "type": "turn/start",
+      "time": 1760000000000,
+      "turn": 1
+    },
+    {
+      "kind": "message",
+      "seq": 1,
+      "type": "user/message",
+      "role": "user",
+      "time": 1760000000100,
+      "content": [
+        {
+          "type": "text",
+          "text": "ciao dal pc"
+        }
+      ]
+    },
+    {
+      "kind": "step-start",
+      "seq": 2,
+      "type": "step/start",
+      "time": 1760000000200,
+      "turn": 1,
+      "step": 1
+    },
+    {
+      "kind": "tool-call",
+      "seq": 3,
+      "type": "tool/call",
+      "time": 1760000000300,
+      "turn": 1,
+      "step": 1,
+      "callId": "call-1",
+      "name": "pwsh",
+      "arguments": "{\"command\":\"ls\"}"
+    },
+    {
+      "kind": "tool-result",
+      "seq": 4,
+      "type": "tool/result",
+      "time": 1760000000400,
+      "turn": 1,
+      "step": 1,
+      "callId": "call-1",
+      "name": "pwsh",
+      "content": [
+        {
+          "type": "text",
+          "text": "file.txt"
+        }
+      ]
+    },
+    {
+      "kind": "step-end",
+      "seq": 5,
+      "type": "step/end",
+      "time": 1760000000500,
+      "turn": 1,
+      "step": 1
+    },
+    {
+      "kind": "message",
+      "seq": 6,
+      "type": "assistant/message",
+      "role": "assistant",
+      "time": 1760000000600,
+      "content": [
+        {
+          "type": "text",
+          "text": "ecco il file"
+        },
+        {
+          "type": "reasoning",
+          "text": "penso"
+        }
+      ]
+    },
+    {
+      "kind": "message",
+      "seq": 7,
+      "type": "user/message",
+      "role": "user",
+      "time": 1760000000700,
+      "content": [
+        {
+          "type": "text",
+          "text": "guarda questa foto"
+        },
+        {
+          "type": "image",
+          "attachmentId": "att-9",
+          "mediaType": "image/png",
+          "width": 4,
+          "height": 4,
+          "name": "foto.png"
+        }
+      ]
+    },
+    {
+      "kind": "deliverable",
+      "seq": 8,
+      "type": "deliverables/presented",
+      "time": 1760000000750,
+      "turn": 1,
+      "callId": "call-9",
+      "files": [
+        {
+          "index": 0,
+          "path": "consegna.md",
+          "description": "la nota"
+        },
+        {
+          "index": 2,
+          "path": "consegna.bin"
+        },
+        {
+          "index": 3,
+          "path": "."
+        }
+      ]
+    },
+    {
+      "kind": "turn-end",
+      "seq": 9,
+      "type": "turn/end",
+      "time": 1760000000800,
+      "turn": 1,
+      "reason": "completed"
+    }
+  ]
+}

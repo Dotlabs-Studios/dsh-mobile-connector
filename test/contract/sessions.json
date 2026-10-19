@@ -1,0 +1,81 @@
+{
+  "items": [
+    {
+      "id": "session-aaaa",
+      "title": "Chat dal PC",
+      "cwd": "H:\\Documenti\\deepseek-harness\\default-workspace",
+      "workspaceId": "ws-default",
+      "workspaceTitle": "default-workspace",
+      "running": false,
+      "agentAvailable": true,
+      "blank": false,
+      "updatedAt": 1760000000800,
+      "lastPromptAt": 1760000000700,
+      "status": "completed"
+    },
+    {
+      "id": "session-bbbb",
+      "title": null,
+      "workspaceId": null,
+      "workspaceTitle": null,
+      "running": true,
+      "agentAvailable": true,
+      "blank": false,
+      "updatedAt": 1759000000000,
+      "lastPromptAt": null,
+      "status": "running"
+    },
+    {
+      "id": "session-failed",
+      "title": "Rotta",
+      "cwd": "K:\\Repository\\Acme",
+      "workspaceId": "ws-acme",
+      "workspaceTitle": "Acme",
+      "running": false,
+      "agentAvailable": true,
+      "blank": false,
+      "updatedAt": 1757000000000,
+      "lastPromptAt": null,
+      "status": "failed"
+    },
+    {
+      "id": "session-stopped",
+      "title": "Fermata",
+      "cwd": "K:\\Repository\\Acme",
+      "workspaceId": "ws-acme",
+      "workspaceTitle": "Acme",
+      "running": false,
+      "agentAvailable": true,
+      "blank": false,
+      "updatedAt": 1756000000000,
+      "lastPromptAt": null,
+      "status": "stopped"
+    },
+    {
+      "id": "session-unfinished",
+      "title": "A metà",
+      "cwd": "K:\\Repository\\Acme",
+      "workspaceId": "ws-acme",
+      "workspaceTitle": "Acme",
+      "running": false,
+      "agentAvailable": true,
+      "blank": false,
+      "updatedAt": 1755000000000,
+      "lastPromptAt": null,
+      "status": "failed"
+    },
+    {
+      "id": "session-blank",
+      "title": "Vuota",
+      "cwd": "K:\\Repository\\Acme",
+      "workspaceId": "ws-acme",
+      "workspaceTitle": "Acme",
+      "running": false,
+      "agentAvailable": true,
+      "blank": true,
+      "updatedAt": 1754000000000,
+      "lastPromptAt": null,
+      "status": "idle"
+    }
+  ]
+}

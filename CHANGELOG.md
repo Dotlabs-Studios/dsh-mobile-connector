@@ -20,6 +20,10 @@
 - **Devices are manageable from the phone.** Settings lists every paired device with when it was last seen, and revokes
   one — including this one, which returns to pairing with the address kept. Unpairing no longer resets the theme and the
   language: those are this phone's choices, not the harness's.
+- **A contract test now holds the two halves together.** The plugin suite writes the real answers of seven routes into
+  `test/contract/` with volatile values normalised, and fails when one of them changes without a regenerated fixture; a
+  JVM test decodes those files with the client's own serializers. A renamed field on the host breaks a test here instead
+  of a screen on a phone.
 - **Settings → Diagnostics answers "is the PC there, and is it new enough".** One read of `/mobile/health` shows the app
   version, the plugin version with the wire `apiVersion`, the address, the measured round-trip, the uptime and both
   pending counts, with a copy button for the report. An older host that has no such route is named as one.

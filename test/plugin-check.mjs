@@ -589,6 +589,86 @@ function ok(condition, label) {
   assert.ok(condition, label)
 }
 
+// ── contract fixtures ────────────────────────────────────────────────────────
+// The Android client decodes these routes. Capturing real payloads and committing
+// them is what turns "the two halves still agree" into a test instead of a hope: a
+// route whose shape changes without a regenerated fixture fails this suite, and the
+// JVM side decodes the committed file with the client's own serializers.
+const CONTRACT_DIR = fileURLToPath(new URL('./contract/', import.meta.url))
+const contractSamples = new Map()
+
+/**
+ * Remember one route's answer for the fixture set.
+ * @param name - the fixture's file name, without extension.
+ * @param body - the payload the route answered with.
+ */
+function recordContract(name, body) {
+  contractSamples.set(name, body)
+}
+
+/**
+ * Replace the values that are different on every run with stable ones.
+ *
+ * A fixture whose bytes change every night is a test that fails for the wrong
+ * reason: ports, uptimes, timestamps and the random ids minted per pairing are not
+ * part of the contract, they are part of one process's state. What must stay pinned
+ * is the *shape* — the keys, their nesting and their types — and that is exactly
+ * what a stable placeholder preserves.
+ *
+ * @param name - the fixture's file name.
+ * @param body - the captured payload.
+ * @returns the payload with volatile values normalised.
+ */
+function normalisedContract(name, body) {
+  const STAMP = 1_760_000_000_000
+  if (name === 'health') return { ...body, port: 4380, uptimeSeconds: 60 }
+  if (name === 'devices') {
+    return {
+      ...body,
+      items: body.items.map((device, index) => ({
+        ...device,
+        id: `dev-${index + 1}`,
+        createdAt: STAMP,
+        lastSeenAt: STAMP,
+      })),
+    }
+  }
+  if (name === 'approvals') {
+    return { ...body, items: body.items.map((item, index) => ({ ...item, id: `approval-${index + 1}`, createdAt: STAMP })) }
+  }
+  if (name === 'questions') {
+    return { ...body, items: body.items.map((item, index) => ({ ...item, id: `question-${index + 1}`, createdAt: STAMP })) }
+  }
+  return body
+}
+
+/**
+ * Write the captured payloads and fail the run when any of them moved.
+ * @returns after the files are written.
+ */
+async function writeContractFixtures() {
+  await mkdir(CONTRACT_DIR, { recursive: true })
+  let changed = 0
+  for (const [name, captured] of contractSamples) {
+    const file = path.join(CONTRACT_DIR, `${name}.json`)
+    const next = `${JSON.stringify(normalisedContract(name, captured), null, 2)}\n`
+    let previous = null
+    try {
+      previous = await readFile(file, 'utf8')
+    } catch {
+      previous = null
+    }
+    if (previous !== next) {
+      await writeFile(file, next, 'utf8')
+      changed += 1
+    }
+  }
+  if (changed > 0) {
+    console.error(`contract fixtures changed (${changed}) — commit test/contract/*.json and re-run`)
+    process.exitCode = 1
+  }
+}
+
 // ── unauthenticated surface ──────────────────────────────────────────────────
 {
   const unknown = await call('/nope')
@@ -658,6 +738,7 @@ function ok(condition, label) {
 
   const expected = sessions.filter((session) => session.origin !== 'subagent').length
   const list = await authed('/mobile/sessions')
+  recordContract('sessions', list.body)
   ok(list.status === 200, `session list answers 200 (got ${list.status})`)
   ok(list.body.items.length === expected, `subagent sessions are hidden by default (got ${list.body.items.length})`)
   ok(list.body.items[0].id === 'session-aaaa', 'sessions are ordered newest first')
@@ -711,6 +792,7 @@ function ok(condition, label) {
 // ── history ──────────────────────────────────────────────────────────────────
 {
   const page = await authed('/mobile/sessions/session-aaaa/messages?limit=50')
+  recordContract('messages', page.body)
   ok(page.status === 200, `history answers 200 (got ${page.status})`)
   ok(page.body.cursor === 9, `history reports the cursor (got ${page.body.cursor})`)
   ok(page.body.entries.length === 10, `every presentable event is returned (got ${page.body.entries.length})`)
@@ -776,6 +858,7 @@ function ok(condition, label) {
   ok(pulseResponse.status === 200, `the pulse answers 200 (got ${pulseResponse.status})`)
   const pulseTag = pulseResponse.headers.get('etag')
   const pulse = await pulseResponse.json()
+  recordContract('pulse', pulse)
   ok(Array.isArray(pulse.sessions) && pulse.sessions.length === sessions.length - 1, `the pulse carries the session rows (got ${pulse.sessions.length})`)
   ok(Array.isArray(pulse.workspaces) && pulse.workspaces.length === workspaces.length, 'the pulse carries the projects')
   ok(pulse.workspacesAvailable === true, 'the pulse says the host groups chats')
@@ -1371,6 +1454,7 @@ function ok(condition, label) {
 
   await new Promise((resolve) => setTimeout(resolve, 20))
   const listed = await authed('/mobile/approvals')
+  recordContract('approvals', listed.body)
   ok(listed.body.items.length === 1, `a pending approval is listed (got ${listed.body.items.length})`)
   const item = listed.body.items[0]
   ok(item.toolName === 'pwsh', 'the tool name travels')
@@ -1511,6 +1595,7 @@ function ok(condition, label) {
 
   await new Promise((resolve) => setTimeout(resolve, 20))
   const listed = await authed('/mobile/questions')
+  recordContract('questions', listed.body)
   ok(listed.body.items.length === 1, `a pending question is listed (got ${listed.body.items.length})`)
   const item = listed.body.items[0]
   ok(item.sessionId === 'session-aaaa', 'the session travels')
@@ -1999,6 +2084,7 @@ function ok(condition, label) {
 
   const listedResponse = await fetch(`${baseDevices}/mobile/devices`, { headers: { authorization: `Bearer ${firstDevice.token}` } })
   const listed = await listedResponse.json()
+  recordContract('devices', listed)
   ok(listedResponse.status === 200, `the device list answers 200 (got ${listedResponse.status})`)
   ok(listed.items.length === 2, `both devices are listed (got ${listed.items.length})`)
   ok(listed.items.some((device) => device.id === firstDevice.id && device.current === true), 'the list marks the caller')
@@ -2059,6 +2145,7 @@ function ok(condition, label) {
 // ── version handshake and a whole-file state write ───────────────────────────
 {
   const health = await authed('/mobile/health')
+  recordContract('health', health.body)
   ok(health.status === 200, `health answers 200 (got ${health.status})`)
   ok(typeof health.body.apiVersion === 'number' && health.body.apiVersion >= 2, 'health reports the wire version')
   ok(typeof health.body.pluginVersion === 'string' && health.body.pluginVersion.length > 0, 'health reports the plugin version')
@@ -2302,5 +2389,7 @@ function ok(condition, label) {
   await new Promise((resolve) => bom.server.close(resolve))
   await rm(bomHome, { recursive: true, force: true })
 }
+
+await writeContractFixtures()
 
 console.log(`\nmobile-sync offline checks passed: ${checks}`)

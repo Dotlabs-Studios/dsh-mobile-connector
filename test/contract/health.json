@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "apiVersion": 2,
+  "pluginVersion": "0.3.0",
+  "appVersion": null,
+  "port": 4380,
+  "uptimeSeconds": 60,
+  "devices": 1,
+  "streams": 0,
+  "pendingApprovals": 0,
+  "pendingQuestions": 0
+}

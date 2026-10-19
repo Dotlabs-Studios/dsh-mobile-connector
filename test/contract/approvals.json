@@ -1,0 +1,17 @@
+{
+  "items": [
+    {
+      "id": "approval-1",
+      "sessionId": "session-aaaa",
+      "toolName": "pwsh",
+      "callId": "call-77",
+      "reason": "audit text",
+      "displayReason": "Run the build",
+      "createdAt": 1760000000000,
+      "outcomes": [
+        "allowed-once",
+        "rejected"
+      ]
+    }
+  ]
+}

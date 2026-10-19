@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "id": "dev-1",
+      "name": "Pixel 8",
+      "createdAt": 1760000000000,
+      "lastSeenAt": 1760000000000,
+      "current": true
+    },
+    {
+      "id": "dev-2",
+      "name": "Pixel 8",
+      "createdAt": 1760000000000,
+      "lastSeenAt": 1760000000000,
+      "current": false
+    }
+  ]
+}
