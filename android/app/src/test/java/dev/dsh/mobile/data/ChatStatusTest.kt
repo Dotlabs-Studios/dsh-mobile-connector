@@ -50,14 +50,30 @@ class ChatStatusTest {
     }
 
     @Test
-    fun `only the idle state is drawn as an absence`() {
-        assertFalse(ChatStatus.Idle.showsDot)
-        assertTrue(ChatStatus.Running.showsDot)
-        assertTrue(ChatStatus.Completed.showsDot)
-        assertTrue(ChatStatus.Failed.showsDot)
-        // Stopped is a fact about the last turn and is worth its own mark: it is
-        // the state a reader uses to find the chat they interrupted.
-        assertTrue(ChatStatus.Stopped.showsDot)
+    fun `the idle state is drawn as an absence, read or not`() {
+        assertFalse(ChatStatus.Idle.showsDot(unread = true))
+        assertFalse(ChatStatus.Idle.showsDot(unread = false))
+    }
+
+    @Test
+    fun `a finished turn is news, and reading the chat spends it`() {
+        // The green dot says "there is an answer here you have not looked at".
+        // Once the chat has been opened it is the row repeating itself, so it
+        // goes — that is the whole point of the state being news rather than a
+        // condition.
+        assertTrue(ChatStatus.Completed.showsDot(unread = true))
+        assertFalse(ChatStatus.Completed.showsDot(unread = false))
+    }
+
+    @Test
+    fun `a failure, a stop and a running turn outlive the read`() {
+        // These three are how a chat is found again — the one that broke, the one
+        // that was interrupted, the one still working — so a read must not hide
+        // them: the list would then paint a broken chat like one that never ran.
+        listOf(ChatStatus.Running, ChatStatus.Failed, ChatStatus.Stopped).forEach { status ->
+            assertTrue("${status.wire} must be drawn on an unread chat", status.showsDot(unread = true))
+            assertTrue("${status.wire} must survive a read", status.showsDot(unread = false))
+        }
     }
 
     @Test

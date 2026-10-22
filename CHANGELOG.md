@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Android client — `dev.dsh.mobile`
+
+- **The green dot is spent by reading the chat.** A row whose last turn finished carries its badge only while the chat
+  is unread, so opening the chat clears it; a failure, a stop and a running turn keep theirs, because they are states to
+  find a chat by rather than news. Reading is also recorded the moment a chat opens, with the newest host timestamp the
+  phone holds — list, tapped row or transcript entry — so a back-tap, a process killed from the chat or a poll that had
+  not landed yet can no longer leave a dot on a chat that was on screen. The seen map only moves forward: a late answer
+  cannot reopen a chat that has been read (`SeenMap`, eight new JVM tests; 375 in the suite).
+
 ## v0.3.0 — 2026-10-19
 
 The release that closes the security hole in pairing, makes the phone's polls cheap, and

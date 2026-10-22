@@ -21,7 +21,7 @@ repository root, and the Kotlin sources live under `android/app/src/main/java/de
 | `data/Permissions.kt` | The permission presets, and one rule: what a preset risks is read from its approval knob, never from its name. |
 | `data/Delivery.kt`, `data/FileAttach.kt`, `data/ImageSniffing.kt` | The delivered-file model with the name and media type Android needs; the attachment bound and the staged-file record; image media types sniffed from file signatures. |
 | `data/Links.kt`, `data/HostFile.kt`, `data/Preview.kt` | Whether a tapped link is a page or a file, and the two shapes those readers return. |
-| `data/Folders.kt`, `data/Workspaces.kt`, `data/ChatStatus.kt` | The browse pane's decisions (which folder a typed name means, where a create landed); the chat list's structure without words (section keys, the five-chat slice); the five chat statuses with no labels attached. |
+| `data/Folders.kt`, `data/Workspaces.kt`, `data/ChatStatus.kt` | The browse pane's decisions (which folder a typed name means, where a create landed); the chat list's structure without words (section keys, the five-chat slice); the five chat statuses with no labels attached, and the one rule that decides whether a row still draws one. |
 | `data/LanguageMode.kt`, `data/LanguageChoice.kt`, `data/ThemeMode.kt` | The two stored choices and their consequences: which tile is ticked, and whether the activity has to be rebuilt. |
 | `data/ImageSizing.kt` | Two arithmetic rules, pure for testing: how far a picked photo is scaled before upload, and which power-of-two subsample a transcript image is decoded with. |
 | `data/PollBackoff.kt` | How long to wait before the next poll: the same arithmetic for both loops, with a cap and a saturating shift. |
@@ -29,6 +29,7 @@ repository root, and the Kotlin sources live under `android/app/src/main/java/de
 | `data/TranscriptSearch.kt` | Flattens a transcript row to the text a search should look at — including the command inside a collapsed card — and filters the rows already held. |
 | `data/MessageQuote.kt` | The quoted form of a message: one `>` per line, cut at a readable length with the cut visible. |
 | `data/SeenCodec.kt` | The storage format of the unread map, `id=millis` lines, kept out of the preferences class so it can be tested without Android. |
+| `data/SeenMap.kt` | The one rule the unread map obeys: a chat's mark only moves forward, so a late poll cannot reopen a chat that has been read. |
 | `data/ApprovalPreview.kt` | What an approval card may show about the call it is asking for: the command, the file, the text about to be written — never a guess. |
 | `data/SessionStore.kt` | Everything that survives a restart (see below). |
 | `data/TextRef.kt` | A message that has been decided but not spelled: resource id plus arguments. |

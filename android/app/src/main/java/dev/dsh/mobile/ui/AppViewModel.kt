@@ -56,6 +56,7 @@ import dev.dsh.mobile.data.failoverCandidates
 import dev.dsh.mobile.data.normalizeHost
 import dev.dsh.mobile.data.nextFailoverHost
 import dev.dsh.mobile.data.pollDelay
+import dev.dsh.mobile.data.rememberSeen
 import dev.dsh.mobile.data.withLanguage
 import dev.dsh.mobile.watch.WatchService
 import kotlinx.coroutines.Job
@@ -743,21 +744,53 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Record that the open chat has been read, using the host's own timestamp.
      *
-     * Called after every list read rather than on every keystroke of state: the value
-     * only means something once the host has told us what the newest `updatedAt` is,
-     * and that arrives with the list.
+     * The value is the newest moment this phone can honestly attribute to the
+     * chat, taken from three sources that answer at different speeds: the list's
+     * `updatedAt` (up to fifteen seconds stale when nothing is running), the row
+     * that was tapped, and the newest entry the chat poll has already shown.
+     * Using only the first is how a turn that ended while the reader watched it
+     * comes back as an unread dot: the list is still behind, the chat has already
+     * said `turn/end`, and the mark written on the way out is older than the
+     * host's clock.
+     *
+     * @param persist whether to write the map through even inside the write
+     *   throttle.
      */
-    private fun markOpenSeen() {
+    private fun markOpenSeen(persist: Boolean = false) {
         val session = openSession ?: return
-        val row = sessions.firstOrNull { it.id == session.id } ?: return
-        if (row.updatedAt <= 0L || seenAt[session.id] == row.updatedAt) return
-        val next = seenAt + (session.id to row.updatedAt)
+        val row = sessions.firstOrNull { it.id == session.id }
+        val newest = maxOf(
+            row?.updatedAt ?: 0L,
+            session.updatedAt,
+            entries.maxOfOrNull { it.time ?: 0L } ?: 0L,
+        )
+        markSeen(session.id, newest, persist)
+    }
+
+    /**
+     * Move one chat's seen mark forward, on screen and — within the throttle — on
+     * disk.
+     *
+     * @param sessionId the chat that was read.
+     * @param at the host timestamp the read covers.
+     * @param persist whether to write through the throttle, for a read that has
+     *   to survive the app: opening a chat, or leaving it.
+     */
+    private fun markSeen(sessionId: String, at: Long, persist: Boolean = false) {
+        val next = rememberSeen(seenAt, sessionId, at)
+        if (next === seenAt) return
         seenAt = next
         val now = System.currentTimeMillis()
-        if (now - seenWriteAt > SEEN_WRITE_MS) {
+        if (persist || now - seenWriteAt > SEEN_WRITE_MS) {
             store.seenAt = next
             seenWriteAt = now
         }
+    }
+
+    /** Write the seen map through, whatever the throttle says. */
+    private fun flushSeen() {
+        store.seenAt = seenAt
+        seenWriteAt = System.currentTimeMillis()
     }
 
     /** The palette the app draws with, as the user chose it. */
@@ -929,6 +962,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     /** Open a session and start following its transcript. */
     fun open(session: SessionSummary) {
         openSession = session
+        // Opening a chat *is* reading it. The mark goes down here rather than
+        // only on the way back out, because the row behind is already gone: a
+        // back-tap before the first list poll, or an app killed from the chat,
+        // used to leave a dot on a chat that had been on screen.
+        markSeen(session.id, session.updatedAt, persist = true)
         sync.reset()
         entries = emptyList()
         // A delivery, a link and a file all belong to the chat they were tapped
@@ -965,9 +1003,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     /** Close the open conversation and return to the list. */
     fun closeSession() {
         // Marked before the session is let go: after this line there is no open
-        // chat to attribute the read to.
+        // chat to attribute the read to. The flush is unconditional because the
+        // polls that advanced the mark may all have been inside the throttle.
         markOpenSeen()
-        store.seenAt = seenAt
+        flushSeen()
         pauseChatPolling()
         openSession = null
         entries = emptyList()
@@ -2470,6 +2509,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     /** Called when the app leaves the screen: stop both loops. */
     fun onBackground() {
         foreground = false
+        // Leaving the app from an open chat is still a look at it, and the
+        // process may not come back: the mark has to reach disk now.
+        if (openSession != null) {
+            markOpenSeen()
+            flushSeen()
+        }
         pausePolling()
         pauseChatPolling()
     }

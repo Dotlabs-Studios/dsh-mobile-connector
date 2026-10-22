@@ -220,7 +220,7 @@ Android 8.0 (API 26) or newer. The release APK published with this project is si
 
 ### What the app does
 
-- **Sessions grouped into projects**, with the project's host path and chat count, and a status dot per row read from the harness's own last durable event: green finished, amber working, red failed or stopped, an empty ring if you interrupted it, nothing if it never started.
+- **Sessions grouped into projects**, with the project's host path and chat count, and a status dot per row read from the harness's own last durable event: green finished, amber working, red failed or stopped, an empty ring if you interrupted it, nothing if it never started. The green one is news, and reading the chat spends it: it goes when the chat is opened, while the red, the amber and the ring stay — those are how the chat that broke is found again.
 - **Fold a project away and keep it folded** — a fold that undoes itself at every launch is a fold nobody uses twice.
 - **Show the last five chats, not all forty**, with the row that says how many it is hiding and doubles as the way back.
 - **Remove a project from the list** — which unties the folder from the harness and never touches the disk, as the confirmation says.
@@ -237,7 +237,7 @@ Android 8.0 (API 26) or newer. The release APK published with this project is si
 - **Diagnose a link** — *Settings → Diagnostics* reads `/mobile/health` and shows the app and plugin versions with the wire `apiVersion`, the address, the round-trip latency, the uptime and what is waiting in the two queues, with a copy button for the whole report.
 - **Be told when the agent needs you** — an optional watch mode keeps one connection to the PC while the app is closed and notifies you when a turn is waiting for a permission, when the agent asks a question, and when a turn ends. It is a foreground service with one ongoing notification, it is off by default, and it needs Android's notification permission.
 - **Make the phone's lock part of the decision** — *Settings → Alerts → Ask before acting* puts the device-credential prompt between the tap and the host for approving a tool and for granting *full access*. Off by default; a phone with no lock configured has nothing to confirm with and proceeds.
-- **See what changed since you last looked** — a row carries one dot when its chat has moved since you read it, decided from the host's own `updatedAt` and remembered across restarts. The open chat is never marked unread.
+- **See what changed since you last looked** — a row carries one dot when its chat has moved since you read it, decided from the host's own `updatedAt` and remembered across restarts. Reading is recorded the moment the chat is opened, with the newest timestamp the phone holds, so a back-tap, a killed app or a poll that had not landed yet cannot leave a dot on a chat that was on screen. The open chat is never marked unread.
 - **Search inside the open chat** — the magnifier in the chat's top bar filters what the phone already holds, including the command inside a collapsed tool card and the text of a delivered file; it never asks the host, so it cannot show a result you could not have scrolled to.
 - **Answer a message by quoting it** — a long press offers Quote beside Copy and Share; the composer receives the message as a marked block, cut at a readable length, so the reply names what it answers.
 - **Send while the link is down** — a message refused by a dead link moves to a small outbox with the reason shown, and the next poll that succeeds sends it. The phone mints a `clientMessageId` for it, so a retry after a lost answer is the *same* message on the PC rather than a duplicate. The banner's **Retry** asks the link again immediately instead of waiting for the backoff.
@@ -317,7 +317,7 @@ cd android
 .\gradlew.bat test
 ```
 
-The data layer is deliberately plain JVM code — no `Context`, no Compose — so wire decoding, transcript folding, markdown parsing, link classification, folder rules, permission presets, delivery resolution and language parity are all covered by local tests. `TranslationParityTest` reads both `strings.xml` files and fails when a key is missing from one, which is the only thing standing between a half-translated release and a screen that mixes two languages. The suite is the gate a release passes: 357 tests today, green, on the commit the APK is built from — plus `lintDebug`, which is a gate of its own.
+The data layer is deliberately plain JVM code — no `Context`, no Compose — so wire decoding, transcript folding, markdown parsing, link classification, folder rules, permission presets, delivery resolution and language parity are all covered by local tests. `TranslationParityTest` reads both `strings.xml` files and fails when a key is missing from one, which is the only thing standing between a half-translated release and a screen that mixes two languages. The suite is the gate a release passes: 375 tests today, green, on the commit the APK is built from — plus `lintDebug`, which is a gate of its own.
 
 **Plugin suite, offline** (boots the plugin against a stand-in Cordis context and drives the real HTTP routes over loopback):
 

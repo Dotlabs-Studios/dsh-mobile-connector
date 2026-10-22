@@ -10,14 +10,14 @@ project can do until the harness grows the call.
 
 ## Last verified
 
-2026-10-19, on `main`, with every gate run in one pass:
+2026-10-22, on `main`, with every gate run in one pass:
 
 | Gate | Result |
 |---|---|
 | `node test/plugin-check.mjs` | 484 checks |
 | `node test/status-map-check.mjs` | 33/33 |
 | `node test/ui-stub-check.mjs` | 13 checks |
-| `gradlew testDebugUnitTest` | 367 tests |
+| `gradlew testDebugUnitTest` | 375 tests |
 | `gradlew lintDebug` | 0 errors |
 | `python tools/l10n-build.py --check` | 369 keys, both files in sync |
 | `python tools/docrefs.py --check` | no line coordinates |
@@ -71,7 +71,7 @@ project can do until the harness grows the call.
 | Stop a turn | **blocked** | no interrupt entry point is reachable from a host plugin; `steer` is the only way | — |
 | Message actions | done | copy, share, quote | `MessageQuoteTest` |
 | In-chat search | done | `TranscriptSearch` over the held rows | `TranscriptSearchTest` |
-| Unread tracking | done | `SeenCodec` + the dot on a row | `SeenCodecTest` |
+| Unread tracking | done | `SeenCodec` + `SeenMap` (a mark only moves forward) + the dot on a row; a finished turn's green badge is news and is spent by reading the chat | `SeenCodecTest`, `SeenMapTest`, `ChatStatusTest` |
 | Offline outbox | done | in-memory queue + `clientMessageId` dedupe on the host | plugin checks and `MobileApiTest` |
 | Editable address | done | `changeHost` keeps the token | `normalizeHost` tests |
 | Two different PCs | **pending** | one pairing per install; several *addresses* per pairing | design in [ROADMAP.md](ROADMAP.md) |

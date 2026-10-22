@@ -10,6 +10,12 @@ package dev.dsh.mobile.data
  * nothing to say at all. Painting those last two like a failure is the specific
  * lie a status dot is worst at, because it is read at a glance and never checked.
  *
+ * Not every state is drawn the same length. A finished turn is *news* — there is
+ * an answer in this chat that has not been read — so its green dot goes once the
+ * chat has been opened; a failure, a stop and a running turn are *states* of the
+ * chat and keep their mark however often it is read, because they are how the
+ * chat that broke is found again a week later. [showsDot] is that one decision.
+ *
  * The words that say all this are not here: they are the `status_*` resources of
  * `res/values/strings.xml`, chosen where the dot is drawn (`ui/SessionsScreen.kt`).
  * They name what happened rather than what colour it is — "rosso" tells a reader
@@ -36,8 +42,24 @@ enum class ChatStatus(val wire: String) {
     Idle("idle"),
     ;
 
-    /** Whether this state is worth a dot; [Idle] is drawn as an absence. */
-    val showsDot: Boolean get() = this != Idle
+    /**
+     * Whether this state earns a dot on a row, given whether the row is unread.
+     *
+     * [Completed] is the one state that is news rather than a condition: "there
+     * is an answer here" is spent by reading the chat, and a green dot that
+     * outlives the look is the row saying the same thing twice. A running turn,
+     * a failure and a stop outlive the look on purpose — they are what the list
+     * is scanned for, and hiding them after a read would make a broken chat
+     * indistinguishable from one that never ran. [Idle] is drawn as an absence.
+     *
+     * @param unread whether the chat has moved since this phone last read it.
+     * @return whether the row should carry this dot.
+     */
+    fun showsDot(unread: Boolean): Boolean = when (this) {
+        Idle -> false
+        Completed -> unread
+        Running, Failed, Stopped -> true
+    }
 
     companion object {
         /**

@@ -728,7 +728,8 @@ private fun ApprovalsStrip(viewModel: AppViewModel) {
  * The state badge sits on the avatar because it is what the list is scanned for:
  * which chat is working, which one finished, which one is sitting on an error.
  * Running keeps a moving ring rather than a dot — two marks for one fact would
- * leave the reader comparing them to find out which one is current.
+ * leave the reader comparing them to find out which one is current. A finished
+ * turn is drawn only while the chat is unread; the other states stay put.
  *
  * @param session the session to render.
  * @param unread whether something happened in this chat since it was last read.
@@ -758,7 +759,11 @@ private fun SessionRow(session: SessionSummary, unread: Boolean = false, onOpen:
         verticalAlignment = Alignment.CenterVertically,
     ) {
         SessionAvatar(
-            status = status?.takeIf { it.showsDot },
+            // The state badge is the one mark that outlives a look at the chat,
+            // except for a finished turn: "completata" is news until the chat is
+            // read, and then it is history. A failure, a stop or a running turn
+            // keeps its mark — those are states to find a chat by, not news.
+            status = status?.takeIf { it.showsDot(unread) },
             subagent = session.origin == "subagent",
             blank = session.blank,
         )
