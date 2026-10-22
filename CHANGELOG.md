@@ -1,16 +1,5 @@
 # Changelog
 
-## Unreleased
-
-### Android client — `dev.dsh.mobile`
-
-- **The green dot is spent by reading the chat.** A row whose last turn finished carries its badge only while the chat
-  is unread, so opening the chat clears it; a failure, a stop and a running turn keep theirs, because they are states to
-  find a chat by rather than news. Reading is also recorded the moment a chat opens, with the newest host timestamp the
-  phone holds — list, tapped row or transcript entry — so a back-tap, a process killed from the chat or a poll that had
-  not landed yet can no longer leave a dot on a chat that was on screen. The seen map only moves forward: a late answer
-  cannot reopen a chat that has been read (`SeenMap`, eight new JVM tests; 375 in the suite).
-
 ## v0.3.0 — 2026-10-19
 
 The release that closes the security hole in pairing, makes the phone's polls cheap, and
@@ -107,6 +96,12 @@ turns the app from a reader into a remote control that can tell you when it need
   decode at the size they are drawn instead of full resolution.
 - Search is debounced (one request per pause, not per keystroke), and the queue-or-steer choice appears only when there
   is something to send.
+- **The green dot is spent by reading the chat.** A row whose last turn finished carries its badge only while the chat
+  is unread, so opening the chat clears it; a failure, a stop and a running turn keep theirs, because they are states to
+  find a chat by rather than news. Reading is also recorded the moment a chat opens, with the newest host timestamp the
+  phone holds — list, tapped row or transcript entry — so a back-tap, a process killed from the chat or a poll that had
+  not landed yet can no longer leave a dot on a chat that was on screen. The seen map only moves forward: a late answer
+  cannot reopen a chat that has been read.
 
 ### Plugin — `dsh-plugin-mobile-sync`
 
@@ -160,8 +155,8 @@ turns the app from a reader into a remote control that can tell you when it need
 
 - 484 offline plugin checks and 33 status-mapping checks, including the pairing, device, SSE-backpressure and
   idempotent-prompt cases added in this cycle.
-- 362 JVM tests, including the contract fixtures captured by the plugin suite and the new pure modules: image sizing,
-  the watch feed, address failover, transcript search, message quoting and the unread map's codec.
+- 375 JVM tests, including the contract fixtures captured by the plugin suite and the new pure modules: image sizing,
+  the watch feed, address failover, transcript search, message quoting, the unread map's codec and its forward-only mark.
 - `gradlew lintDebug` clean; generated strings in sync with the sixteen tables (369 resources).
 - **The shrink candidate is checked for the failure that needs no phone.** `tools/dex-keep-check.py` reads the shrunk
   APK's dex and asserts that every wire type — `SessionSummary` through `PendingQuestion` — plus `$$serializer` and
